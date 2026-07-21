@@ -23,7 +23,12 @@
 
         {{-- ── Die Ausgabe, so wie sie ankommt ───────────────────────────── --}}
         <section class="rounded-xl border border-gray-200 bg-white p-5 xl:col-span-2">
-            <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Vorschau</h2>
+            <div class="flex items-center justify-between">
+                <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Vorschau</h2>
+                <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                    {{ $kampagne->imCodeModus() ? 'Eigener Code' : 'Baukasten' }}
+                </span>
+            </div>
             <p class="mt-1 text-sm text-gray-500">Betreff: <span class="text-gray-800">{{ $kampagne->betreff }}</span></p>
 
             <div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
@@ -32,8 +37,19 @@
                 <div class="prose prose-sm max-w-none">{!! $kampagne->alsHtml() !!}</div>
             </div>
 
-            @if (($kampagne->bausteine ?? []) === [])
+            @unless ($kampagne->hatInhalt())
                 <p class="mt-3 text-sm text-gray-500">Diese Ausgabe hat noch keinen Inhalt.</p>
+            @endunless
+
+            @if (str_contains($kampagne->alsHtml(), '{{'))
+                <p class="mt-3 flex items-start gap-1.5 text-xs text-gray-500">
+                    <i class='bx bx-info-circle mt-0.5'></i>
+                    <span>
+                        Platzhalter stehen hier absichtlich noch roh da – es gibt an dieser Stelle
+                        keinen bestimmten Empfänger. Gefüllt werden sie erst beim Versand, für jeden
+                        einzeln. Wie es dann aussieht, zeigt eine Testmail im Editor.
+                    </span>
+                </p>
             @endif
         </section>
 
@@ -83,7 +99,7 @@
                           onsubmit="return confirm('Diese Ausgabe jetzt an {{ $uebersicht['erreichbar'] ?? 0 }} Empfänger freigeben? Das lässt sich nicht zurücknehmen.');">
                         @csrf
                         <button type="submit"
-                                @disabled(($uebersicht['erreichbar'] ?? 0) === 0 || ($kampagne->bausteine ?? []) === [])
+                                @disabled(($uebersicht['erreichbar'] ?? 0) === 0 || ! $kampagne->hatInhalt())
                                 class="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40">
                             Jetzt freigeben und verschicken
                         </button>

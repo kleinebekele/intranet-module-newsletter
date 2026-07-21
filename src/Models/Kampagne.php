@@ -27,9 +27,15 @@ class Kampagne extends Model
 
     public const VERSENDET = 'versendet';
 
+    /** Zusammengeklickt aus Bausteinen. */
+    public const MODUS_BAUSTEINE = 'bausteine';
+
+    /** Selbst geschriebenes HTML samt eigener Textfassung. */
+    public const MODUS_CODE = 'code';
+
     protected $table = 'newsletter_kampagnen';
 
-    protected $fillable = ['titel', 'betreff', 'bausteine', 'zielgruppen', 'erstellt_von'];
+    protected $fillable = ['titel', 'betreff', 'modus', 'bausteine', 'html', 'text', 'zielgruppen', 'erstellt_von'];
 
     protected $casts = [
         'bausteine' => 'array',
@@ -53,14 +59,36 @@ class Kampagne extends Model
         return $this->status === self::ENTWURF;
     }
 
+    public function imCodeModus(): bool
+    {
+        return $this->modus === self::MODUS_CODE;
+    }
+
+    /**
+     * Der Inhalt der Ausgabe als Mail-HTML.
+     *
+     * Im Code-Modus das selbst geschriebene HTML, sonst die gerenderten
+     * Bausteine. Beide Fassungen bleiben in der Zeile stehen – `modus`
+     * entscheidet nur, welche gilt.
+     */
     public function alsHtml(): string
     {
-        return Bausteine::alsHtml($this->bausteine ?? []);
+        return $this->imCodeModus()
+            ? (string) $this->html
+            : Bausteine::alsHtml($this->bausteine ?? []);
     }
 
     public function alsText(): string
     {
-        return Bausteine::alsText($this->bausteine ?? []);
+        return $this->imCodeModus()
+            ? (string) $this->text
+            : Bausteine::alsText($this->bausteine ?? []);
+    }
+
+    /** Hat die Ausgabe überhaupt etwas zu verschicken? */
+    public function hatInhalt(): bool
+    {
+        return trim($this->alsHtml()) !== '';
     }
 
     /**

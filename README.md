@@ -3,10 +3,34 @@
 Rundmails an ausgewählte Benutzerrollen – für die modulare
 [Intranet-Plattform](https://github.com/kleinebekele/intranet-core).
 
-Eine Ausgabe wird aus **Bausteinen** zusammengestellt (Überschrift, Text, Bild, Knopf,
-Trennlinie), an eine oder mehrere **Rollen** adressiert und erst nach ausdrücklicher
+Eine Ausgabe wird an eine oder mehrere **Rollen** adressiert und erst nach ausdrücklicher
 **Freigabe** verschickt. Der Versand läuft über den Ausgangskorb des Core und ist damit
 automatisch gedrosselt.
+
+## Zwei Wege, eine Ausgabe zu schreiben
+
+Umschaltbar über Reiter; **beide Fassungen bleiben gespeichert**, `modus` entscheidet nur,
+welche gilt. Wer hin- und herwechselt, verliert seine Arbeit nicht.
+
+- **Baukasten** – Überschrift, Textabsatz, Bild, Knopf, Trennlinie. Eingetippter Text wird
+  immer maskiert; das Layout ist nicht zerschießbar. Für alle, die kein HTML schreiben.
+- **Eigener Code** – aufgebaut wie der Editor unter *Mailvorlagen*: *Formatierte Fassung*
+  (WYSIWYG mit Umschalter auf Quelltext) · *Reiner Text* · *Vorschau* mit Testmail.
+  Der Knopf **„Aus Baukasten übernehmen"** erzeugt aus den Bausteinen einen Startpunkt,
+  den man dann von Hand feinschleift.
+
+Geschrieben wird nur der **Inhalt** – Kopf, Fuß und Anrede kommen aus dem Rahmen bzw. der
+Vorlage `newsletter` (s. u.).
+
+## Platzhalter
+
+`{{ name }}`, `{{ ausgabe }}` und `{{ betreff }}` funktionieren in **beiden** Modi und werden
+je Empfänger einzeln gefüllt.
+
+⚠️ Das erledigt bewusst dieses Modul (`Support\Platzhalter`), nicht der Core: `VorlagenMailer`
+ersetzt Platzhalter in der *Vorlage*, in einem einzigen Durchgang – was dabei eingesetzt wird
+(bei uns die ganze Ausgabe als `{{ inhalt }}`), wird nicht noch einmal durchsucht. Ohne diesen
+Zwischenschritt stünde `{{ name }}` wörtlich in der Mail.
 
 ## Installation
 

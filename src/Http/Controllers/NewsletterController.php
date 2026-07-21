@@ -10,12 +10,14 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Intranet\Modules\Newsletter\Models\Empfaenger;
 use Intranet\Modules\Newsletter\Models\Kampagne;
 use Intranet\Modules\Newsletter\NewsletterServiceProvider;
 use Intranet\Modules\Newsletter\Support\Bausteine;
 use Intranet\Modules\Newsletter\Support\Empfaengerkreis;
+use Intranet\Modules\Newsletter\Support\Platzhalter;
 
 /**
  * Newsletter-Ausgaben anlegen, ansehen und freigeben.
@@ -41,7 +43,11 @@ class NewsletterController extends Controller
     public function create(): View
     {
         return view('newsletter::form', [
-            'kampagne' => new Kampagne(['bausteine' => [], 'zielgruppen' => []]),
+            'kampagne' => new Kampagne([
+                'bausteine' => [],
+                'zielgruppen' => [],
+                'modus' => Kampagne::MODUS_BAUSTEINE,
+            ]),
             'rollen' => Empfaengerkreis::rollen(),
         ]);
     }
@@ -114,7 +120,7 @@ class NewsletterController extends Controller
             return back()->with('error', 'Diese Ausgabe wurde bereits freigegeben.');
         }
 
-        if (($kampagne->bausteine ?? []) === []) {
+        if (! $kampagne->hatInhalt()) {
             return back()->with('error', 'Die Ausgabe hat noch keinen Inhalt.');
         }
 
@@ -147,20 +153,13 @@ class NewsletterController extends Controller
      */
     public function vorschau(Request $request): JsonResponse
     {
-        $bausteine = $this->bausteine($request);
-
-        $fertig = $this->mailer->rendern(
-            NewsletterServiceProvider::VORLAGE,
-            [
-                'name' => $request->user()->name,
-                'betreff' => (string) $request->input('betreff'),
-                'ausgabe' => (string) $request->input('titel'),
-                'inhalt' => Bausteine::alsHtml($bausteine),
-            ],
-            ['inhalt' => Bausteine::alsText($bausteine)],
+        // Zusätzlich zur fertigen Mail der ROHE Inhalt: Den braucht der Knopf
+        // „Aus Baukasten übernehmen" als Startpunkt für den Code-Modus. Die
+        // gerahmte Fassung wäre dafür unbrauchbar – sie enthält das ganze
+        // Dokument samt Kopf und Fuß.
+        return response()->json(
+            $this->rendernAusRequest($request) + $this->inhaltAusRequest($request),
         );
-
-        return response()->json($fertig);
     }
 
     /**
@@ -175,18 +174,7 @@ class NewsletterController extends Controller
             return response()->json(['ok' => false, 'meldung' => 'An diese Adresse kann nicht zugestellt werden.'], 422);
         }
 
-        $bausteine = $this->bausteine($request);
-
-        $fertig = $this->mailer->rendern(
-            NewsletterServiceProvider::VORLAGE,
-            [
-                'name' => $request->user()->name,
-                'betreff' => (string) $request->input('betreff'),
-                'ausgabe' => (string) $request->input('titel'),
-                'inhalt' => Bausteine::alsHtml($bausteine),
-            ],
-            ['inhalt' => Bausteine::alsText($bausteine)],
-        );
+        $fertig = $this->rendernAusRequest($request);
 
         Mail::html($fertig['html'], function ($nachricht) use ($daten, $fertig) {
             $nachricht->to($daten['an'])->subject('[TEST] '.$fertig['betreff'])->text($fertig['text']);
@@ -220,6 +208,10 @@ class NewsletterController extends Controller
     /**
      * Die geprüften Formulardaten einer Ausgabe.
      *
+     * Beide Fassungen werden gespeichert – die Bausteine UND der eigene Code.
+     * `modus` entscheidet, welche gilt. Wer zwischen den Reitern wechselt, soll
+     * seine Arbeit nicht verlieren.
+     *
      * @return array<string, mixed>
      */
     private function daten(Request $request): array
@@ -227,16 +219,69 @@ class NewsletterController extends Controller
         $request->validate([
             'titel' => ['required', 'string', 'max:120'],
             'betreff' => ['required', 'string', 'max:200'],
+            'modus' => ['required', Rule::in([Kampagne::MODUS_BAUSTEINE, Kampagne::MODUS_CODE])],
             'zielgruppen' => ['array'],
             'zielgruppen.*' => ['string'],
             'bausteine' => ['nullable', 'string'],
+            'html' => ['nullable', 'string'],
+            'text' => ['nullable', 'string'],
         ]);
 
         return [
             'titel' => trim((string) $request->input('titel')),
             'betreff' => trim((string) $request->input('betreff')),
+            'modus' => $request->input('modus'),
             'zielgruppen' => $this->zielgruppen($request),
             'bausteine' => $this->bausteine($request),
+            'html' => $request->input('html'),
+            'text' => $request->input('text'),
+        ];
+    }
+
+    /**
+     * Vorschau und Testmail rendern beide dasselbe: das, was GERADE im
+     * Formular steht – auch ungespeichert, und je nach Reiter aus Bausteinen
+     * oder aus eigenem Code.
+     *
+     * @return array{betreff: string, html: string, text: string}
+     */
+    private function rendernAusRequest(Request $request): array
+    {
+        $werte = [
+            'name' => $request->user()->name,
+            'betreff' => (string) $request->input('betreff'),
+            'ausgabe' => (string) $request->input('titel'),
+        ];
+
+        ['inhalt_html' => $html, 'inhalt_text' => $text] = $this->inhaltAusRequest($request);
+
+        return $this->mailer->rendern(
+            NewsletterServiceProvider::VORLAGE,
+            $werte + ['inhalt' => Platzhalter::ersetzen($html, $werte)],
+            ['inhalt' => Platzhalter::ersetzen($text, $werte)],
+        );
+    }
+
+    /**
+     * Der Inhalt der Ausgabe – ohne Rahmen und ohne Anrede, so wie er in der
+     * Spalte `html`/`bausteine` steht.
+     *
+     * @return array{inhalt_html: string, inhalt_text: string}
+     */
+    private function inhaltAusRequest(Request $request): array
+    {
+        if ($request->input('modus') === Kampagne::MODUS_CODE) {
+            return [
+                'inhalt_html' => (string) $request->input('html'),
+                'inhalt_text' => (string) $request->input('text'),
+            ];
+        }
+
+        $bausteine = $this->bausteine($request);
+
+        return [
+            'inhalt_html' => Bausteine::alsHtml($bausteine),
+            'inhalt_text' => Bausteine::alsText($bausteine),
         ];
     }
 

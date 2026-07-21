@@ -8,6 +8,7 @@ use Illuminate\Console\Command;
 use Intranet\Modules\Newsletter\Models\Empfaenger;
 use Intranet\Modules\Newsletter\Models\Kampagne;
 use Intranet\Modules\Newsletter\NewsletterServiceProvider;
+use Intranet\Modules\Newsletter\Support\Platzhalter;
 use Throwable;
 
 /**
@@ -52,8 +53,10 @@ class NewsletterVersenden extends Command
     /** @return int Anzahl bearbeiteter Empfänger */
     private function abarbeiten(Kampagne $kampagne, VorlagenMailer $mailer, int $hoechstens): int
     {
-        // Einmal je Ausgabe rendern, nicht je Empfänger: Der Inhalt ist für
-        // alle gleich, nur die Anrede unterscheidet sich.
+        // Einmal je Ausgabe rendern, nicht je Empfänger: Bausteine bauen bzw.
+        // eigenes HTML holen ist der teure Teil. Was sich je Empfänger
+        // unterscheidet, ist nur das Einsetzen der Platzhalter – das passiert
+        // gleich unten auf dem fertigen Text und kostet fast nichts.
         $html = $kampagne->alsHtml();
         $text = $kampagne->alsText();
 
@@ -107,18 +110,19 @@ class NewsletterVersenden extends Command
             return;
         }
 
+        $werte = [
+            'name' => (string) ($benutzer->name ?? ''),
+            'betreff' => $kampagne->betreff,
+            'ausgabe' => $kampagne->titel,
+        ];
+
         try {
             $mailer->senden(
                 NewsletterServiceProvider::VORLAGE,
                 $adresse,
-                [
-                    'name' => (string) ($benutzer->name ?? ''),
-                    'betreff' => $kampagne->betreff,
-                    'ausgabe' => $kampagne->titel,
-                    'inhalt' => $html,
-                ],
-                // In der Textfassung hat das HTML der Bausteine nichts verloren.
-                ['inhalt' => $text],
+                $werte + ['inhalt' => Platzhalter::ersetzen($html, $werte)],
+                // In der Textfassung hat HTML nichts verloren.
+                ['inhalt' => Platzhalter::ersetzen($text, $werte)],
             );
 
             $empfaenger->abschliessen(Empfaenger::EINGELIEFERT);
