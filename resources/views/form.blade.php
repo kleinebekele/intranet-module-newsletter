@@ -21,6 +21,7 @@
     <div x-data="newsletterEditor({
             bausteine: @js($kampagne->bausteine ?? []),
             modus: @js(old('modus', $kampagne->modus ?? 'bausteine')),
+            mitRahmen: @js((string) (int) old('mit_rahmen', $kampagne->mit_rahmen ?? true)),
             html: @js(old('html', $kampagne->html ?? '')),
             text: @js(old('text', $kampagne->text ?? '')),
             urls: {
@@ -253,11 +254,45 @@
             {{-- ══ Eigener Code ════════════════════════════════════════════ --}}
             <div x-show="modus === 'code'" class="pt-5">
 
-                <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
-                    <p class="text-sm text-gray-500">
-                        Eigenes HTML für den Inhalt der Ausgabe – <strong>ohne</strong> Kopf, Fuß und Anrede.
-                        Die liefert der Rahmen unter Verwaltung&nbsp;→&nbsp;Mailvorlagen.
+                {{-- Rahmen ja/nein – nur hier relevant. --}}
+                <div class="mb-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                    <div class="text-sm font-medium text-gray-700">Wie wird dein Code verschickt?</div>
+                    <div class="mt-2 space-y-2">
+                        <label class="flex items-start gap-2 text-sm">
+                            <input type="radio" name="mit_rahmen" value="1" x-model="mitRahmen" @change="nachVorschau"
+                                   class="mt-0.5 border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                            <span>
+                                <span class="font-medium text-gray-800">In die Vorlage einsetzen</span>
+                                <span class="block text-xs text-gray-500">
+                                    Dein HTML kommt als Inhalt in den Newsletter-Rahmen – mit Kopf, Logo,
+                                    Anrede und Fuß. Wie beim Baukasten, nur der Inhalt ist selbst geschrieben.
+                                </span>
+                            </span>
+                        </label>
+                        <label class="flex items-start gap-2 text-sm">
+                            <input type="radio" name="mit_rahmen" value="0" x-model="mitRahmen" @change="nachVorschau"
+                                   class="mt-0.5 border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                            <span>
+                                <span class="font-medium text-gray-800">Komplett eigener Code</span>
+                                <span class="block text-xs text-gray-500">
+                                    Dein HTML <strong>ist</strong> die ganze Mail – kein Rahmen, keine Anrede.
+                                    Du lieferst alles selbst, inklusive <code>&lt;html&gt;</code> und Fußzeile.
+                                </span>
+                            </span>
+                        </label>
+                    </div>
+
+                    <p x-show="mitRahmen === '0'" x-cloak
+                       class="mt-3 flex items-start gap-1.5 border-t border-gray-200 pt-3 text-xs text-amber-700">
+                        <i class='bx bx-error-circle mt-0.5'></i>
+                        <span>
+                            Ohne Rahmen fehlen Abmeldehinweis und einheitliches Aussehen. Schick dir vor der
+                            Freigabe unbedingt eine Testmail und sieh sie dir in Outlook an.
+                        </span>
                     </p>
+                </div>
+
+                <div class="mb-4 flex justify-end">
                     <button type="button" @click="ausBausteinen"
                             class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:border-indigo-300 hover:bg-indigo-50">
                         <x-module-icon name="import" class="text-sm" />
@@ -348,6 +383,9 @@
             return {
                 // Inhalt
                 modus: config.modus,
+                // '1'/'0' als String, weil an Radio-Buttons gebunden. Nur im
+                // Code-Modus von Belang; der Baukasten braucht den Rahmen immer.
+                mitRahmen: config.mitRahmen,
                 bausteine: [],
                 html: config.html,
                 text: config.text,
@@ -530,6 +568,7 @@
                         titel: this.titel,
                         betreff: this.betreff,
                         modus: this.modus,
+                        mit_rahmen: this.mitRahmen,
                         bausteine: JSON.stringify(this.bausteine),
                         html: this.html,
                         text: this.text,

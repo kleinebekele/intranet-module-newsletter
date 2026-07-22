@@ -19,8 +19,15 @@ welche gilt. Wer hin- und herwechselt, verliert seine Arbeit nicht.
   Der Knopf **„Aus Baukasten übernehmen"** erzeugt aus den Bausteinen einen Startpunkt,
   den man dann von Hand feinschleift.
 
-Geschrieben wird nur der **Inhalt** – Kopf, Fuß und Anrede kommen aus dem Rahmen bzw. der
-Vorlage `newsletter` (s. u.).
+Im Code-Modus ist außerdem wählbar, **wie** der Code verschickt wird:
+
+- **In die Vorlage einsetzen** (Standard) – das HTML kommt als Inhalt in den Newsletter-Rahmen,
+  mit Kopf, Logo, Anrede und Fuß. Wie beim Baukasten, nur der Inhalt ist selbst geschrieben.
+- **Komplett eigener Code** – das HTML *ist* die ganze Mail. Kein Rahmen, keine Anrede; der
+  Verfasser liefert alles selbst (inkl. `<html>` und Abbinder). Für fertige Kampagnen-Templates
+  aus einem anderen Werkzeug.
+
+Beim Baukasten ist der Rahmen immer an – dort sind die Bausteine Fragmente.
 
 ## Platzhalter
 
@@ -31,6 +38,13 @@ je Empfänger einzeln gefüllt.
 ersetzt Platzhalter in der *Vorlage*, in einem einzigen Durchgang – was dabei eingesetzt wird
 (bei uns die ganze Ausgabe als `{{ inhalt }}`), wird nicht noch einmal durchsucht. Ohne diesen
 Zwischenschritt stünde `{{ name }}` wörtlich in der Mail.
+
+## Im Maillog
+
+Jede Newsletter-Mail erscheint im Maillog des Core (Verwaltung → Maillog) mit dem Auslöser
+**Newsletter** – auch die „komplett eigener Code"-Mails, die über `Mail::html()` statt über eine
+Vorlage laufen. Möglich macht das ein interner Header, den der Core beim Einliefern ausliest und
+wieder entfernt (`VorlagenMailer::quelleMarkieren()`, ab dem entsprechenden Core-Stand).
 
 ## Installation
 

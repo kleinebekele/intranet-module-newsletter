@@ -26,7 +26,13 @@
             <div class="flex items-center justify-between">
                 <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Vorschau</h2>
                 <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
-                    {{ $kampagne->imCodeModus() ? 'Eigener Code' : 'Baukasten' }}
+                    @if (! $kampagne->imCodeModus())
+                        Baukasten
+                    @elseif ($kampagne->mitRahmen())
+                        Eigener Code (in Vorlage)
+                    @else
+                        Eigener Code (komplett eigen)
+                    @endif
                 </span>
             </div>
             <p class="mt-1 text-sm text-gray-500">Betreff: <span class="text-gray-800">{{ $kampagne->betreff }}</span></p>
@@ -41,7 +47,9 @@
                 <p class="mt-3 text-sm text-gray-500">Diese Ausgabe hat noch keinen Inhalt.</p>
             @endunless
 
-            @if (str_contains($kampagne->alsHtml(), '{{'))
+            {{-- '{'.'{' statt '{{': ein literales Doppel-Geschweift im Ausdruck
+                 würde Blade als Beginn einer Echo-Direktive missdeuten. --}}
+            @if (str_contains($kampagne->alsHtml(), '{'.'{'))
                 <p class="mt-3 flex items-start gap-1.5 text-xs text-gray-500">
                     <i class='bx bx-info-circle mt-0.5'></i>
                     <span>

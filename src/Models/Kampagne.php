@@ -35,9 +35,22 @@ class Kampagne extends Model
 
     protected $table = 'newsletter_kampagnen';
 
-    protected $fillable = ['titel', 'betreff', 'modus', 'bausteine', 'html', 'text', 'zielgruppen', 'erstellt_von'];
+    protected $fillable = ['titel', 'betreff', 'modus', 'mit_rahmen', 'bausteine', 'html', 'text', 'zielgruppen', 'erstellt_von'];
+
+    /**
+     * Ein frisch erstelltes Objekt ist sofort ein Entwurf – nicht erst, nachdem
+     * es einmal aus der DB nachgeladen wurde. Der DB-Default `entwurf` greift
+     * sonst nur in der Datenbank, und `istEntwurf()` liefe auf einem gerade per
+     * create() erzeugten Objekt ins Leere.
+     */
+    protected $attributes = [
+        'status' => self::ENTWURF,
+        'modus' => self::MODUS_BAUSTEINE,
+        'mit_rahmen' => true,
+    ];
 
     protected $casts = [
+        'mit_rahmen' => 'boolean',
         'bausteine' => 'array',
         'zielgruppen' => 'array',
         'freigegeben_am' => 'datetime',
@@ -62,6 +75,18 @@ class Kampagne extends Model
     public function imCodeModus(): bool
     {
         return $this->modus === self::MODUS_CODE;
+    }
+
+    /**
+     * Wird der Inhalt in den Newsletter-Rahmen (Kopf, Fuß, Anrede) gelegt?
+     *
+     * Der Baukasten liefert immer Fragmente und braucht den Rahmen zwingend.
+     * Nur im Code-Modus darf man ihn abwählen und die ganze Mail selbst
+     * schreiben.
+     */
+    public function mitRahmen(): bool
+    {
+        return ! $this->imCodeModus() || (bool) $this->mit_rahmen;
     }
 
     /**

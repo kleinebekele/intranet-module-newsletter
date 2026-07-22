@@ -7,8 +7,7 @@ use App\Support\Zustellbarkeit;
 use Illuminate\Console\Command;
 use Intranet\Modules\Newsletter\Models\Empfaenger;
 use Intranet\Modules\Newsletter\Models\Kampagne;
-use Intranet\Modules\Newsletter\NewsletterServiceProvider;
-use Intranet\Modules\Newsletter\Support\Platzhalter;
+use Intranet\Modules\Newsletter\Support\Zusteller;
 use Throwable;
 
 /**
@@ -117,12 +116,14 @@ class NewsletterVersenden extends Command
         ];
 
         try {
-            $mailer->senden(
-                NewsletterServiceProvider::VORLAGE,
+            Zusteller::zustellen(
+                $mailer,
                 $adresse,
-                $werte + ['inhalt' => Platzhalter::ersetzen($html, $werte)],
-                // In der Textfassung hat HTML nichts verloren.
-                ['inhalt' => Platzhalter::ersetzen($text, $werte)],
+                $kampagne->mitRahmen(),
+                $kampagne->betreff,
+                $html,
+                $text,
+                $werte,
             );
 
             $empfaenger->abschliessen(Empfaenger::EINGELIEFERT);

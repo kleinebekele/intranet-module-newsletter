@@ -14,10 +14,9 @@ use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Intranet\Modules\Newsletter\Models\Empfaenger;
 use Intranet\Modules\Newsletter\Models\Kampagne;
-use Intranet\Modules\Newsletter\NewsletterServiceProvider;
 use Intranet\Modules\Newsletter\Support\Bausteine;
 use Intranet\Modules\Newsletter\Support\Empfaengerkreis;
-use Intranet\Modules\Newsletter\Support\Platzhalter;
+use Intranet\Modules\Newsletter\Support\Zusteller;
 
 /**
  * Newsletter-Ausgaben anlegen, ansehen und freigeben.
@@ -47,6 +46,7 @@ class NewsletterController extends Controller
                 'bausteine' => [],
                 'zielgruppen' => [],
                 'modus' => Kampagne::MODUS_BAUSTEINE,
+                'mit_rahmen' => true,
             ]),
             'rollen' => Empfaengerkreis::rollen(),
         ]);
@@ -176,8 +176,12 @@ class NewsletterController extends Controller
 
         $fertig = $this->rendernAusRequest($request);
 
+        // Bewusst NICHT über den Zusteller: Die Testmail trägt ein [TEST] im
+        // Betreff und geht an genau eine frei gewählte Adresse. Den Auslöser
+        // markieren wir trotzdem, damit sie im Maillog als „Newsletter" steht.
         Mail::html($fertig['html'], function ($nachricht) use ($daten, $fertig) {
             $nachricht->to($daten['an'])->subject('[TEST] '.$fertig['betreff'])->text($fertig['text']);
+            VorlagenMailer::quelleMarkieren($nachricht, Zusteller::QUELLE);
         });
 
         return response()->json([
@@ -220,6 +224,7 @@ class NewsletterController extends Controller
             'titel' => ['required', 'string', 'max:120'],
             'betreff' => ['required', 'string', 'max:200'],
             'modus' => ['required', Rule::in([Kampagne::MODUS_BAUSTEINE, Kampagne::MODUS_CODE])],
+            'mit_rahmen' => ['nullable', 'boolean'],
             'zielgruppen' => ['array'],
             'zielgruppen.*' => ['string'],
             'bausteine' => ['nullable', 'string'],
@@ -231,6 +236,10 @@ class NewsletterController extends Controller
             'titel' => trim((string) $request->input('titel')),
             'betreff' => trim((string) $request->input('betreff')),
             'modus' => $request->input('modus'),
+            // Nur im Code-Modus abwählbar; der Baukasten braucht den Rahmen immer.
+            'mit_rahmen' => $request->input('modus') === Kampagne::MODUS_CODE
+                ? $request->boolean('mit_rahmen')
+                : true,
             'zielgruppen' => $this->zielgruppen($request),
             'bausteine' => $this->bausteine($request),
             'html' => $request->input('html'),
@@ -255,11 +264,24 @@ class NewsletterController extends Controller
 
         ['inhalt_html' => $html, 'inhalt_text' => $text] = $this->inhaltAusRequest($request);
 
-        return $this->mailer->rendern(
-            NewsletterServiceProvider::VORLAGE,
-            $werte + ['inhalt' => Platzhalter::ersetzen($html, $werte)],
-            ['inhalt' => Platzhalter::ersetzen($text, $werte)],
+        return Zusteller::rendern(
+            $this->mailer,
+            $this->mitRahmenAusRequest($request),
+            (string) $request->input('betreff'),
+            $html,
+            $text,
+            $werte,
         );
+    }
+
+    /**
+     * Nutzt die im Formular gerade eingestellte Fassung den Rahmen? Der
+     * Baukasten immer, der Code-Modus nur, wenn der Schalter an ist.
+     */
+    private function mitRahmenAusRequest(Request $request): bool
+    {
+        return $request->input('modus') !== Kampagne::MODUS_CODE
+            || $request->boolean('mit_rahmen');
     }
 
     /**
