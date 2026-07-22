@@ -4,7 +4,9 @@ namespace Intranet\Modules\Newsletter\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Mail\Vorlagen\VorlagenMailer;
+use App\Models\MailOutbox;
 use App\Support\Zustellbarkeit;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -84,20 +86,110 @@ class NewsletterController extends Controller
 
     public function show(Kampagne $kampagne): View
     {
+        // Empfänger seitenweise, jede Zeile mit dem echten Zustellstatus aus dem
+        // Maillog des Core angereichert (an wen ging/geht die Ausgabe raus).
+        $empfaenger = $kampagne->istEntwurf()
+            ? null
+            : $this->empfaengerMitStatus($kampagne);
+
         return view('newsletter::show', [
             'kampagne' => $kampagne->load('ersteller'),
             'fortschritt' => $kampagne->fortschritt(),
             'uebersicht' => $kampagne->istEntwurf()
                 ? Empfaengerkreis::uebersicht($kampagne->zielgruppen ?? [])
                 : null,
-            // Wer NICHT erreicht wurde, ist die interessante Auskunft – die
-            // Zugestellten sind der Normalfall und stünden nur im Weg.
-            'auffaellige' => $kampagne->empfaenger()
-                ->whereIn('status', [Empfaenger::UEBERSPRUNGEN, Empfaenger::FEHLER])
-                ->with('user')
-                ->limit(100)
-                ->get(),
+            'empfaenger' => $empfaenger,
         ]);
+    }
+
+    /**
+     * Die Empfänger dieser Ausgabe (seitenweise), jeder mit seinem echten
+     * Zustellstatus aus dem Ausgangskorb des Core.
+     *
+     * @return \Illuminate\Pagination\LengthAwarePaginator
+     */
+    private function empfaengerMitStatus(Kampagne $kampagne)
+    {
+        $seite = $kampagne->empfaenger()
+            ->with('user:id,name')
+            ->orderBy('id')
+            ->paginate(50);
+
+        // Für genau die Empfänger DIESER Seite die zugehörigen Maillog-Zeilen
+        // holen – über die Referenz, die der Versand mitgeschrieben hat. Nur die
+        // leichten Spalten (die serialisierte Nachricht bleibt außen vor).
+        $zustellungen = collect();
+
+        if ($this->outboxKenntReferenz() && $seite->isNotEmpty()) {
+            $referenzen = $seite->getCollection()
+                ->map(fn (Empfaenger $e) => $kampagne->mailReferenz($e->id))
+                ->all();
+
+            $zustellungen = MailOutbox::query()
+                ->whereIn('referenz', $referenzen)
+                ->get(['referenz', 'status', 'versendet_am', 'fehler'])
+                ->keyBy('referenz');
+        }
+
+        return $seite->through(fn (Empfaenger $e) => $this->zustellZeile($kampagne, $e, $zustellungen));
+    }
+
+    /**
+     * Eine Zeile der Zustell-Übersicht: Name, Adresse und ein einheitlich
+     * eingefärbter Status, der Modul-Sicht (übersprungen/wartet) und echte
+     * Ausgangskorb-Sicht (versendet/fehlgeschlagen) zusammenführt.
+     *
+     * @param  \Illuminate\Support\Collection<string, MailOutbox>  $zustellungen
+     * @return array{name: string, email: string, label: string, farbe: string, detail: ?string, zeit: ?\Illuminate\Support\Carbon}
+     */
+    private function zustellZeile(Kampagne $kampagne, Empfaenger $empfaenger, $zustellungen): array
+    {
+        $basis = [
+            'name' => $empfaenger->user?->name ?? '—',
+            'email' => $empfaenger->email,
+            'zeit' => $empfaenger->eingeliefert_am,
+        ];
+
+        // Zustände, die den Ausgangskorb nie erreicht haben – die Wahrheit steht
+        // dann in der Empfänger-Zeile selbst.
+        if ($empfaenger->status === Empfaenger::UEBERSPRUNGEN) {
+            return $basis + ['label' => 'Übersprungen', 'farbe' => 'gray', 'detail' => $empfaenger->grund, 'zeit' => null];
+        }
+
+        if ($empfaenger->status === Empfaenger::FEHLER) {
+            return $basis + ['label' => 'Fehler beim Einliefern', 'farbe' => 'red', 'detail' => $empfaenger->grund, 'zeit' => null];
+        }
+
+        if ($empfaenger->status === Empfaenger::WARTEND) {
+            return $basis + ['label' => 'Wartet auf Einlieferung', 'farbe' => 'amber', 'detail' => null, 'zeit' => null];
+        }
+
+        // Eingeliefert: der echte Stand kommt aus dem Ausgangskorb.
+        $mail = $zustellungen->get($kampagne->mailReferenz($empfaenger->id));
+
+        if (! $mail) {
+            // Keine Maillog-Zeile (z. B. Ausgangskorb abgeschaltet → Sofortversand,
+            // oder Zeile aufgeräumt). Mehr als „übergeben" wissen wir dann nicht.
+            return $basis + ['label' => 'Eingeliefert', 'farbe' => 'indigo', 'detail' => null];
+        }
+
+        return $basis + match ($mail->status) {
+            MailOutbox::VERSENDET => ['label' => 'Versendet', 'farbe' => 'green', 'detail' => null, 'zeit' => $mail->versendet_am],
+            MailOutbox::FEHLGESCHLAGEN => ['label' => 'Versand fehlgeschlagen', 'farbe' => 'red', 'detail' => $mail->fehler],
+            default => ['label' => 'Im Ausgangskorb', 'farbe' => 'amber', 'detail' => null],
+        };
+    }
+
+    /**
+     * Kennt der Core die Referenz-Spalte schon? Ein älterer Core (vor dem
+     * Referenz-Feature) hat sie nicht – dann bleibt die Zustell-Übersicht bei
+     * „eingeliefert", statt mit einem DB-Fehler auszusteigen. Einmal je Anfrage.
+     */
+    private function outboxKenntReferenz(): bool
+    {
+        static $vorhanden = null;
+
+        return $vorhanden ??= Schema::hasColumn('mail_outbox', 'referenz');
     }
 
     public function destroy(Kampagne $kampagne): RedirectResponse

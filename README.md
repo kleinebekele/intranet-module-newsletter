@@ -46,6 +46,27 @@ Jede Newsletter-Mail erscheint im Maillog des Core (Verwaltung → Maillog) mit 
 Vorlage laufen. Möglich macht das ein interner Header, den der Core beim Einliefern ausliest und
 wieder entfernt (`VorlagenMailer::quelleMarkieren()`, ab dem entsprechenden Core-Stand).
 
+## Zustellung je Empfänger (auf der Ausgaben-Seite)
+
+Unterhalb einer freigegebenen Ausgabe steht **an wen sie ging bzw. geht**, mit dem echten
+Stand aus dem Maillog des Core – seitenweise (50/Seite):
+
+| Status | Bedeutung |
+|---|---|
+| Versendet | Vom Mailserver angenommen (mit Zeitpunkt). |
+| Im Ausgangskorb | Eingeliefert, wartet auf den gedrosselten Versand. |
+| Wartet auf Einlieferung | Noch nicht an den Ausgangskorb übergeben. |
+| Versand fehlgeschlagen | Nach mehreren Versuchen aufgegeben (mit Fehlertext). |
+| Übersprungen | Nie verschickt (gesperrt / keine echte Adresse), mit Grund. |
+
+Damit die Seite genau ihre eigenen Maillog-Zeilen findet, schreibt der Versand je Mail eine
+Referenz `newsletter:<ausgabe>:<empfänger>` in die Core-Spalte `mail_outbox.referenz` (über den
+Header `X-Intranet-Referenz`). Ein Betreff-Vergleich wäre unzuverlässig, wenn zwei Ausgaben
+denselben Betreff tragen.
+
+⚠️ Braucht **Core mit der `mail_outbox.referenz`-Spalte**. Fehlt sie (älterer Core), bleibt die
+Übersicht beim Stand „Eingeliefert", statt mit einem Fehler auszusteigen.
+
 ## Installation
 
 ```bash

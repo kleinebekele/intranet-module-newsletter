@@ -78,6 +78,16 @@ class Kampagne extends Model
     }
 
     /**
+     * Die Referenz, unter der die Mail an einen Empfänger im Ausgangskorb des
+     * Core landet. Command und Ausgaben-Seite bauen sie beide hierüber – so
+     * findet die Seite später genau die zu ihr gehörenden Maillog-Zeilen.
+     */
+    public function mailReferenz(int $empfaengerId): string
+    {
+        return "newsletter:{$this->id}:{$empfaengerId}";
+    }
+
+    /**
      * Wird der Inhalt in den Newsletter-Rahmen (Kopf, Fuß, Anrede) gelegt?
      *
      * Der Baukasten liefert immer Fragmente und braucht den Rahmen zwingend.

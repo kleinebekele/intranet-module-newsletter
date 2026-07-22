@@ -81,6 +81,9 @@ class Zusteller
      * Eine Mail in den Ausgangskorb einliefern (echter Versand).
      *
      * @param  array<string, string>  $werte
+     * @param  string|null  $referenz  Freie Referenz, mit der die Ausgaben-Seite
+     *                                 diese Mail später im Maillog wiederfindet
+     *                                 (`newsletter:<ausgabe>:<empfänger>`).
      */
     public static function zustellen(
         VorlagenMailer $mailer,
@@ -90,6 +93,7 @@ class Zusteller
         string $html,
         string $text,
         array $werte,
+        ?string $referenz = null,
     ): void {
         $werte = self::werteMitBetreff($betreff, $werte);
 
@@ -100,20 +104,22 @@ class Zusteller
                 $werte + ['inhalt' => Platzhalter::ersetzen($html, $werte)],
                 ['inhalt' => Platzhalter::ersetzen($text, $werte)],
                 self::QUELLE,
+                $referenz,
             );
 
             return;
         }
 
-        // Ohne Rahmen: direkt verschicken, ohne Vorlage. Den Auslöser trotzdem
-        // markieren, damit auch diese Mails im Maillog als „Newsletter" stehen.
+        // Ohne Rahmen: direkt verschicken, ohne Vorlage. Auslöser UND Referenz
+        // trotzdem markieren, damit auch diese Mails im Maillog als „Newsletter"
+        // stehen und der Ausgabe zugeordnet werden können.
         $fertigHtml = Platzhalter::ersetzen($html, $werte);
         $fertigText = Platzhalter::ersetzen($text, $werte);
         $fertigBetreff = $werte['betreff'];
 
-        Mail::html($fertigHtml, function ($nachricht) use ($an, $fertigBetreff, $fertigText) {
+        Mail::html($fertigHtml, function ($nachricht) use ($an, $fertigBetreff, $fertigText, $referenz) {
             $nachricht->to($an)->subject($fertigBetreff)->text($fertigText);
-            VorlagenMailer::quelleMarkieren($nachricht, self::QUELLE);
+            VorlagenMailer::quelleMarkieren($nachricht, self::QUELLE, $referenz);
         });
     }
 }

@@ -124,7 +124,15 @@ class NewsletterVersenden extends Command
                 $html,
                 $text,
                 $werte,
+                $kampagne->mailReferenz($empfaenger->id),
             );
+
+            // Die tatsächlich genutzte Adresse festhalten (kann von der beim
+            // Freigeben gemerkten abweichen, wenn sich die Mailadresse inzwischen
+            // geändert hat) – so stimmt die Anzeige auf der Ausgaben-Seite.
+            if ($empfaenger->email !== $adresse) {
+                $empfaenger->forceFill(['email' => $adresse])->save();
+            }
 
             $empfaenger->abschliessen(Empfaenger::EINGELIEFERT);
         } catch (Throwable $e) {

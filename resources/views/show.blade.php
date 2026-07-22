@@ -179,33 +179,60 @@
         </div>
     </div>
 
-    @if ($auffaellige->isNotEmpty())
+    {{-- ── Zustellung: an wen ging/geht die Ausgabe raus ──────────────────── --}}
+    @if ($empfaenger)
+        @php
+            $farben = [
+                'green'  => 'bg-green-100 text-green-800',
+                'amber'  => 'bg-amber-100 text-amber-800',
+                'red'    => 'bg-red-100 text-red-700',
+                'gray'   => 'bg-gray-100 text-gray-600',
+                'indigo' => 'bg-indigo-100 text-indigo-700',
+            ];
+        @endphp
+
         <section class="mt-6 rounded-xl border border-gray-200 bg-white p-5">
-            <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Nicht zugestellt</h2>
+            <div class="flex items-center justify-between">
+                <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Zustellung</h2>
+                <span class="text-xs text-gray-400">{{ $empfaenger->total() }} Empfänger</span>
+            </div>
             <p class="mt-1 text-sm text-gray-500">
-                Wer die Ausgabe nicht bekommen hat – und warum.
+                An wen die Ausgabe ging bzw. geht – der Stand kommt direkt aus dem Maillog des Intranets.
             </p>
 
             <div class="mt-3 overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead class="border-b border-gray-200 text-left text-xs uppercase tracking-wide text-gray-500">
                         <tr>
-                            <th class="py-2 font-semibold">Person</th>
-                            <th class="py-2 font-semibold">Adresse</th>
-                            <th class="py-2 font-semibold">Grund</th>
+                            <th class="py-2 pr-4 font-semibold">Person</th>
+                            <th class="py-2 pr-4 font-semibold">Adresse</th>
+                            <th class="py-2 pr-4 font-semibold">Status</th>
+                            <th class="py-2 font-semibold whitespace-nowrap">Zeitpunkt</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
-                        @foreach ($auffaellige as $empfaenger)
-                            <tr>
-                                <td class="py-2 text-gray-800">{{ $empfaenger->user?->name ?? '—' }}</td>
-                                <td class="py-2 text-gray-500">{{ $empfaenger->email }}</td>
-                                <td class="py-2 text-gray-600">{{ $empfaenger->grund }}</td>
+                        @foreach ($empfaenger as $zeile)
+                            <tr class="align-top">
+                                <td class="py-2 pr-4 text-gray-800">{{ $zeile['name'] }}</td>
+                                <td class="py-2 pr-4 text-gray-500">{{ $zeile['email'] }}</td>
+                                <td class="py-2 pr-4">
+                                    <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {{ $farben[$zeile['farbe']] ?? $farben['gray'] }}">
+                                        {{ $zeile['label'] }}
+                                    </span>
+                                    @if ($zeile['detail'])
+                                        <span class="mt-1 block text-xs text-gray-500">{{ \Illuminate\Support\Str::limit($zeile['detail'], 120) }}</span>
+                                    @endif
+                                </td>
+                                <td class="py-2 text-gray-500 whitespace-nowrap">
+                                    {{ $zeile['zeit']?->format('d.m.Y H:i') ?? '—' }}
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
             </div>
+
+            <div class="mt-4">{{ $empfaenger->links() }}</div>
         </section>
     @endif
 </x-app-layout>
