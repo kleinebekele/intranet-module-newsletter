@@ -4,8 +4,8 @@
 **Paket:** `do1emu/module-newsletter` (öffentlich, Packagist) · Repo `plattform\intranet-module-newsletter`
 **Modul-Key:** `newsletter` · Routen `module.newsletter.*`
 
-Generisch gebaut, Auslöser ist die Waldorfschule (Rundmail an Lehrer/Eltern/Mitarbeiter).
-Ravensberger kann es ohne Umbau mitnutzen – Zielgruppen sind schlicht „die Rollen, die es in
+Generisch gebaut, Auslöser war eine Schule (Rundmail an Lehrer/Eltern/Mitarbeiter).
+Jede andere Instanz kann es ohne Umbau mitnutzen – Zielgruppen sind schlicht „die Rollen, die es in
 dieser Instanz gibt".
 
 ---
@@ -23,12 +23,12 @@ Was daraus **geschenkt** kommt (nichts davon muss gebaut werden):
 - **Vorfahrt für Wichtiges.** Newsletter laufen mit Priorität 0, 2FA- und Passwort-Mails mit 10 –
   niemand wartet 4 Stunden auf seinen Anmeldecode, weil gerade der Newsletter läuft.
 - **Künstliche Adressen fallen still raus.** `Zustellbarkeit` filtert `.intern` beim Einliefern
-  *und* beim Versenden. Die ~490 Waldorf-Schüler ohne echte Adresse sprengen nichts.
+  *und* beim Versenden. Auch mehrere hundert Konten ohne echte Adresse sprengen nichts.
 - **Vorlagen-Komfort.** Betreff + HTML- und Text-Fassung, Platzhalter, Live-Vorschau, Testmail,
   „Standard wiederherstellen" – der Newsletter erbt das komplette Backend unter *Mailvorlagen*.
 
 ⚠️ **Voraussetzung:** Ohne Cron für `schedule:run` geht bei aktivem `MAIL_OUTBOX` **gar keine**
-Mail raus. Auf RAV läuft der Scheduler, auf der Waldorf-VM seit 2026-07-18 auch.
+Mail raus. Der Cron-Eintrag muss auf jedem Server einmalig angelegt sein.
 
 ---
 
@@ -105,7 +105,7 @@ Vorbild ist der Einladungs-Puffer (`app/Models/Einladung.php`), der genau so arb
 ## Ablauf
 
 1. **Anlegen** – Titel, Betreff, Bausteine. Status `entwurf`, jederzeit weiter bearbeitbar.
-2. **Zielgruppen wählen** – Mehrfachauswahl über die Rollen (bei Waldorf: `teacher`, `parent`,
+2. **Zielgruppen wählen** – Mehrfachauswahl über die Rollen (in einer Schule etwa `teacher`, `parent`,
    `staff`, `student`) oder „alle". Die Auswahl zeigt sofort **„erreicht 412 von 917"** und
    erklärt die Differenz (gesperrt, nur künstliche Adresse, abgemeldet). Keine Überraschungen
    nach dem Absenden.
@@ -123,8 +123,8 @@ als eigenen, sichtbaren Schritt.
 
 ## Empfänger bestimmen
 
-Grundmenge sind die Rollen aus `user_roles`. Die Waldorf-Rollen `student` / `teacher` / `staff` /
-`parent` legt der Linear-Benutzer-Import an (siehe `waldorfschule.md`) – das Modul setzt keine
+Grundmenge sind die Rollen aus `user_roles`. Schul-Rollen wie `student` / `teacher` / `staff` /
+`parent` legt in der Regel ein Benutzer-Import an – das Modul setzt keine
 Rollen, es liest sie nur.
 
 Immer ausgeschlossen:
@@ -141,8 +141,8 @@ eine Rolle. Vorerst nicht nötig – die Rolle `parent` reicht und ist instanzun
 
 - **Abmeldung (Opt-out).** Für eine interne Schul-Rundmail an Mitglieder rechtlich vermutlich
   nicht zwingend, aber praktisch: ein Abmelde-Link in der Fußzeile spart Rückfragen. Braucht
-  einen Token-Link ohne Anmeldung – dieselbe Mechanik wie beim Aftersales-Portal. In Linear gibt
-  es übrigens eine Spalte `EmailNewsLetter`; ob die gepflegt ist, ist ungeprüft.
+  einen Token-Link ohne Anmeldung. Liefert das führende Fremdsystem ein Newsletter-Kennzeichen
+  mit, kann es als Vorbelegung dienen.
 - **Bild-Upload und absolute URLs.** Mail-Clients laden keine relativen Pfade. Der Core löst das
   beim Logo schon (`VorlagenMailer::logoBild()`), das Muster ist übernehmbar.
 - **Anhänge** (PDF-Elternbrief) – naheliegender Wunsch, im ersten Wurf nicht vorgesehen. Die

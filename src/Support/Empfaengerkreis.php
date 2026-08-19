@@ -13,8 +13,8 @@ use Illuminate\Support\Collection;
  *
  * Bewusst über die Rollen, die es in dieser Instanz gerade gibt – das Modul
  * bringt keine eigenen mit und kennt keine fest verdrahteten Gruppen. In der
- * Waldorfschule sind das `teacher`/`parent`/`staff`/`student` (vom
- * Linear-Abgleich angelegt), anderswo etwas ganz anderes. Wer eine neue Rolle
+ * Schule sind das etwa `teacher`/`parent`/`staff`/`student` (von einem
+ * Benutzer-Import angelegt), anderswo etwas ganz anderes. Wer eine neue Rolle
  * im Admin-Panel anlegt, kann sie sofort anschreiben.
  */
 class Empfaengerkreis
