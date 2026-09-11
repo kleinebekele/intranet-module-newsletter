@@ -23,13 +23,24 @@ class Empfaengerkreis
     public const ALLE = 'alle';
 
     /**
+     * Die typischen Personengruppen eines Benutzer-Imports, in der Reihenfolge,
+     * in der man sie im Formular erwartet: erst das Haus, dann die Angeschriebenen.
+     * Alle übrigen Rollen folgen alphabetisch dahinter.
+     */
+    private const REIHENFOLGE = ['staff', 'teacher', 'parent', 'student'];
+
+    /**
      * Die auswählbaren Zielgruppen für das Formular.
      *
      * @return Collection<int, Role>
      */
     public static function rollen(): Collection
     {
-        return Role::query()->orderBy('name')->get();
+        $rang = array_flip(self::REIHENFOLGE);
+
+        return Role::query()->orderBy('name')->get()
+            ->sortBy(fn (Role $r) => sprintf('%02d %s', $rang[$r->role_id] ?? 99, $r->name))
+            ->values();
     }
 
     /**
