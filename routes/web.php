@@ -31,6 +31,7 @@ Route::middleware(['web', 'auth'])
         Route::post('/bild', [NewsletterController::class, 'bild'])->name('bild');
 
         Route::get('/{kampagne}', [NewsletterController::class, 'show'])->name('show');
+        Route::get('/{kampagne}/vorschau', [NewsletterController::class, 'mailVorschau'])->name('mail-vorschau');
         Route::get('/{kampagne}/bearbeiten', [NewsletterController::class, 'edit'])->name('edit');
         Route::put('/{kampagne}', [NewsletterController::class, 'update'])->name('update');
         Route::delete('/{kampagne}', [NewsletterController::class, 'destroy'])->name('destroy');

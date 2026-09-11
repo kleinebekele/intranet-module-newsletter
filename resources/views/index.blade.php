@@ -25,6 +25,7 @@
                     <th class="px-4 py-3 font-semibold">Status</th>
                     <th class="px-4 py-3 font-semibold">Empfänger</th>
                     <th class="px-4 py-3 font-semibold">Angelegt</th>
+                    <th class="px-4 py-3"></th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -49,10 +50,24 @@
                             @endif
                         </td>
                         <td class="px-4 py-3 text-gray-500">{{ $kampagne->created_at?->format('d.m.Y') }}</td>
+                        <td class="px-4 py-3 text-right whitespace-nowrap">
+                            <a href="{{ route('module.newsletter.show', $kampagne) }}"
+                               class="text-sm text-indigo-700 hover:underline">Vorschau</a>
+                            @if ($kampagne->istEntwurf())
+                                <a href="{{ route('module.newsletter.edit', $kampagne) }}"
+                                   class="ml-3 text-sm text-indigo-700 hover:underline">Bearbeiten</a>
+                                <form method="POST" action="{{ route('module.newsletter.destroy', $kampagne) }}"
+                                      class="ml-3 inline"
+                                      onsubmit="return confirm('Entwurf „{{ $kampagne->titel }}“ löschen?');">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="text-sm text-gray-500 hover:text-red-600">Löschen</button>
+                                </form>
+                            @endif
+                        </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="px-4 py-10 text-center text-gray-500">
+                        <td colspan="6" class="px-4 py-10 text-center text-gray-500">
                             Noch keine Ausgabe. Lege die erste an – verschickt wird erst nach ausdrücklicher Freigabe.
                         </td>
                     </tr>

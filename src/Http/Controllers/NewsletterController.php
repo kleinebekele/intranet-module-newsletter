@@ -103,6 +103,31 @@ class NewsletterController extends Controller
     }
 
     /**
+     * Die fertige Mail einer gespeicherten Ausgabe – mit Rahmen, Kopf und Fuß,
+     * genau so, wie sie beim Empfänger ankommt. Wird auf der Detailseite in
+     * einem Iframe gezeigt; Platzhalter sind mit den Daten des Betrachters gefüllt.
+     */
+    public function mailVorschau(Request $request, Kampagne $kampagne): \Illuminate\Http\Response
+    {
+        $fertig = Zusteller::rendern(
+            $this->mailer,
+            $kampagne->mitRahmen(),
+            (string) $kampagne->betreff,
+            $kampagne->alsHtml(),
+            $kampagne->alsText(),
+            [
+                'name' => $request->user()->name,
+                'betreff' => (string) $kampagne->betreff,
+                'ausgabe' => (string) $kampagne->titel,
+            ],
+        );
+
+        return response($fertig['html'])
+            ->header('Content-Type', 'text/html; charset=UTF-8')
+            ->header('X-Frame-Options', 'SAMEORIGIN');
+    }
+
+    /**
      * Die Empfänger dieser Ausgabe (seitenweise), jeder mit seinem echten
      * Zustellstatus aus dem Ausgangskorb des Core.
      *

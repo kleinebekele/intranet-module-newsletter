@@ -37,10 +37,11 @@
             </div>
             <p class="mt-1 text-sm text-gray-500">Betreff: <span class="text-gray-800">{{ $kampagne->betreff }}</span></p>
 
-            <div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
-                {{-- Der Inhalt ist beim Bauen maskiert worden (siehe Bausteine), das
-                     hier ist genau das HTML, das auch in der Mail steht. --}}
-                <div class="prose prose-sm max-w-none">{!! $kampagne->alsHtml() !!}</div>
+            {{-- Die fertige Mail samt Rahmen, Kopf und Fuß – so, wie sie ankommt.
+                 Im Iframe, damit das Mail-CSS nicht mit dem Intranet-Layout kollidiert. --}}
+            <div class="mt-4 overflow-hidden rounded-lg border border-gray-200 bg-white">
+                <iframe src="{{ route('module.newsletter.mail-vorschau', $kampagne) }}"
+                        class="h-[40rem] w-full" title="Vorschau der Mail"></iframe>
             </div>
 
             @unless ($kampagne->hatInhalt())
@@ -53,9 +54,8 @@
                 <p class="mt-3 flex items-start gap-1.5 text-xs text-gray-500">
                     <i class='bx bx-info-circle mt-0.5'></i>
                     <span>
-                        Platzhalter stehen hier absichtlich noch roh da – es gibt an dieser Stelle
-                        keinen bestimmten Empfänger. Gefüllt werden sie erst beim Versand, für jeden
-                        einzeln. Wie es dann aussieht, zeigt eine Testmail im Editor.
+                        Platzhalter sind in dieser Vorschau mit deinen eigenen Daten gefüllt.
+                        Beim Versand bekommt jeder Empfänger seine eigenen.
                     </span>
                 </p>
             @endif
