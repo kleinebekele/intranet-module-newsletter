@@ -96,17 +96,33 @@ class Zusteller
         ?string $referenz = null,
         ?string $absenderName = null,
         ?string $antwortAn = null,
+        ?object $konto = null,
     ): void {
         // Beide Fassungen (mit und ohne Rahmen) laufen über dieselbe Stelle:
         // erst fertig rendern, dann EINE Mail bauen – so bekommen beide denselben
         // Absender, Antwort-an, Auslöser und die Referenz fürs Maillog.
         $fertig = self::rendern($mailer, $mitRahmen, $betreff, $html, $text, $werte);
 
-        Mail::html($fertig['html'], function ($nachricht) use ($an, $fertig, $referenz, $absenderName, $antwortAn) {
+        Mail::html($fertig['html'], function ($nachricht) use ($an, $fertig, $referenz, $absenderName, $antwortAn, $konto) {
             $nachricht->to($an)->subject($fertig['betreff'])->text($fertig['text']);
-            self::absenderSetzen($nachricht, $absenderName, $antwortAn);
+            self::absenderSetzen($nachricht, $absenderName, $antwortAn, $konto);
             VorlagenMailer::quelleMarkieren($nachricht, self::QUELLE, $referenz);
         });
+    }
+
+    /**
+     * Die wählbaren SMTP-Absender aus der Core-Verwaltung (Maillog → SMTP-Absender),
+     * nur aktive. Leer, wenn der Core sie noch nicht kennt oder keins angelegt ist.
+     *
+     * @return \Illuminate\Support\Collection<int, object>
+     */
+    public static function konten(): \Illuminate\Support\Collection
+    {
+        if (! class_exists(\App\Models\MailKonto::class) || ! \Illuminate\Support\Facades\Schema::hasTable('mail_konten')) {
+            return collect();
+        }
+
+        return \App\Models\MailKonto::where('aktiv', true)->orderBy('bezeichnung')->get();
     }
 
     /**
@@ -117,8 +133,16 @@ class Zusteller
      * Verwaltung (Maillog → Absender, Modul Core / Auslöser Newsletter) gewinnt
      * beim Einliefern trotzdem – das ist dort so gewollt.
      */
-    public static function absenderSetzen(\Illuminate\Mail\Message $nachricht, ?string $absenderName, ?string $antwortAn): void
+    public static function absenderSetzen(\Illuminate\Mail\Message $nachricht, ?string $absenderName, ?string $antwortAn, ?object $konto = null): void
     {
+        // Mit SMTP-Absender: dessen Adresse und Zugang, Name/Antwort-an der
+        // Ausgabe gewinnen über die Vorgaben des Kontos.
+        if ($konto !== null && method_exists($konto, 'anMail')) {
+            $konto->anMail($nachricht, $absenderName, $antwortAn);
+
+            return;
+        }
+
         if (filled($absenderName)) {
             $nachricht->from((string) config('mail.from.address'), $absenderName);
         }

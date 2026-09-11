@@ -127,9 +127,16 @@ bleibt die der Instanz (`MAIL_FROM_ADDRESS`), weil eine fremde Absenderadresse o
 SPF/DKIM der eigenen Domain im Spam landet. Antworten gehen dann z. B. ins Postfach der
 Redaktion statt ins Systempostfach. Beides leer = Standard der Instanz.
 
-Eine Absender-Zeile in der Verwaltung (Maillog → Absender, Modul *Core*, Auslöser
-*Newsletter*) gewinnt beim Einliefern über die Angaben der Ausgabe. Verschiedene
-SMTP-Konten je Absender gibt es (noch) nicht – das wäre eine Erweiterung des Core-Ausgangskorbs.
+**Eigenes Postfach:** Hat die Verwaltung unter Maillog → SMTP-Absender Konten angelegt,
+bietet der Editor sie im Dropdown „Absender" an. Die Ausgabe geht dann über genau dieses
+Postfach raus, mit dessen Absenderadresse; der Wechsel im Dropdown setzt Name und Antwort-an
+auf die Vorgaben des Kontos, beide bleiben editierbar. Ist das Konto beim Versand gelöscht
+oder abgeschaltet, fällt die Ausgabe auf den Standard zurück (steht im Log und auf der
+Ausgaben-Seite). Braucht einen Core mit `App\Models\MailKonto`; ein älterer Core zeigt
+das Dropdown nicht.
+
+Eine Absender-Zeile in der Verwaltung (Maillog → Absender je Auslöser, Modul *Core*,
+Auslöser *Newsletter*) gewinnt beim Einliefern über beides.
 
 ## Wer darf schreiben?
 

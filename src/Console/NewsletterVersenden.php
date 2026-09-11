@@ -59,6 +59,14 @@ class NewsletterVersenden extends Command
         $html = $kampagne->alsHtml();
         $text = $kampagne->alsText();
 
+        // SMTP-Absender einmal je Lauf auflösen. Ist das gewählte Konto weg oder
+        // abgeschaltet, geht die Ausgabe über den Standard raus – lieber das
+        // als 900 liegengebliebene Mails, und im Log steht es.
+        $konto = $kampagne->konto();
+        if ($kampagne->mail_konto_id && $konto === null) {
+            $this->warn("Ausgabe „{$kampagne->titel}\": SMTP-Absender #{$kampagne->mail_konto_id} fehlt oder ist abgeschaltet – Versand über den Standard-Absender.");
+        }
+
         $offen = $kampagne->empfaenger()
             ->wartend()
             ->with('user')
@@ -67,7 +75,7 @@ class NewsletterVersenden extends Command
             ->get();
 
         foreach ($offen as $empfaenger) {
-            $this->einliefern($kampagne, $empfaenger, $mailer, $html, $text);
+            $this->einliefern($kampagne, $empfaenger, $mailer, $html, $text, $konto);
         }
 
         // Fertig? Erst prüfen, nachdem dieser Lauf gearbeitet hat.
@@ -89,6 +97,7 @@ class NewsletterVersenden extends Command
         VorlagenMailer $mailer,
         string $html,
         string $text,
+        ?object $konto = null,
     ): void {
         // Zwischen Freigabe und Versand können Stunden liegen. In der Zeit kann
         // jemand gesperrt worden sein oder eine neue Adresse bekommen haben –
@@ -127,6 +136,7 @@ class NewsletterVersenden extends Command
                 $kampagne->mailReferenz($empfaenger->id),
                 $kampagne->absender_name,
                 $kampagne->antwort_an,
+                $konto,
             );
 
             // Die tatsächlich genutzte Adresse festhalten (kann von der beim

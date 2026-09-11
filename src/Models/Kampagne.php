@@ -35,7 +35,7 @@ class Kampagne extends Model
 
     protected $table = 'newsletter_kampagnen';
 
-    protected $fillable = ['titel', 'betreff', 'absender_name', 'antwort_an', 'modus', 'mit_rahmen', 'bausteine', 'html', 'text', 'zielgruppen', 'erstellt_von'];
+    protected $fillable = ['titel', 'betreff', 'absender_name', 'antwort_an', 'mail_konto_id', 'modus', 'mit_rahmen', 'bausteine', 'html', 'text', 'zielgruppen', 'erstellt_von'];
 
     /**
      * Ein frisch erstelltes Objekt ist sofort ein Entwurf – nicht erst, nachdem
@@ -65,6 +65,22 @@ class Kampagne extends Model
     public function ersteller(): BelongsTo
     {
         return $this->belongsTo(User::class, 'erstellt_von');
+    }
+
+    /**
+     * Der gewählte SMTP-Absender (Core-Modell `MailKonto`) – oder null für den
+     * Standard-Mailer der Instanz. Null auch, wenn das Konto inzwischen gelöscht
+     * oder abgeschaltet ist oder der Core die Konten noch nicht kennt.
+     */
+    public function konto(): ?object
+    {
+        if (! $this->mail_konto_id || ! class_exists(\App\Models\MailKonto::class)) {
+            return null;
+        }
+
+        $konto = \App\Models\MailKonto::find($this->mail_konto_id);
+
+        return ($konto && $konto->aktiv) ? $konto : null;
     }
 
     public function istEntwurf(): bool

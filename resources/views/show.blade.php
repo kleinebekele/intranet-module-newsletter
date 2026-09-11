@@ -36,9 +36,15 @@
                 </span>
             </div>
             <p class="mt-1 text-sm text-gray-500">Betreff: <span class="text-gray-800">{{ $kampagne->betreff }}</span></p>
+            @php $konto = $kampagne->konto(); @endphp
             <p class="mt-0.5 text-sm text-gray-500">
-                Absender: <span class="text-gray-800">{{ $kampagne->absender_name ?: config('mail.from.name') }}</span>
-                <span class="text-gray-400">&lt;{{ config('mail.from.address') }}&gt;</span>
+                Absender: <span class="text-gray-800">{{ $kampagne->absender_name ?: ($konto?->absender_name ?: config('mail.from.name')) }}</span>
+                <span class="text-gray-400">&lt;{{ $konto?->absender_mail ?? config('mail.from.address') }}&gt;</span>
+                @if ($konto)
+                    <span class="ml-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">Postfach „{{ $konto->bezeichnung }}"</span>
+                @elseif ($kampagne->mail_konto_id)
+                    <span class="ml-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700">gewähltes Postfach fehlt – Standard</span>
+                @endif
                 @if ($kampagne->antwort_an)
                     · Antworten an: <span class="text-gray-800">{{ $kampagne->antwort_an }}</span>
                 @endif

@@ -32,6 +32,10 @@
             },
             csrf: @js(csrf_token()),
             eigeneMail: @js(auth()->user()->email),
+            // Vorgaben je SMTP-Absender (Dropdown) – beim Wechsel werden Name und
+            // Antwort-an damit ersetzt; „Standard" setzt die Werte der Instanz.
+            konten: @js($konten->map(fn ($k) => ['id' => (string) $k->id, 'name' => (string) ($k->absender_name ?? ''), 'antwort' => (string) ($k->antwort_an ?? '')])->values()),
+            standardName: @js((string) config('mail.from.name')),
          })">
 
         <form method="POST" action="{{ $ziel }}" @submit="vorSpeichern">
@@ -71,18 +75,41 @@
                         </div>
                     </div>
 
-                    {{-- Absender je Ausgabe: nur der angezeigte Name (die Adresse bleibt
-                         die der Instanz) und eine Antwort-an-Adresse. Leer = Standard. --}}
-                    <div class="mt-4 grid gap-4 border-t border-gray-100 pt-4 sm:grid-cols-2">
+                    {{-- Absender je Ausgabe: wahlweise ein SMTP-Absender aus der Verwaltung
+                         (eigenes Postfach, eigene Adresse) oder der Standard der Instanz.
+                         Name und Antwort-an sind immer editierbar; der Wechsel im Dropdown
+                         setzt sie auf die Vorgaben des gewählten Kontos zurück. --}}
+                    <div class="mt-4 grid gap-4 border-t border-gray-100 pt-4 sm:grid-cols-3">
+                        <div>
+                            <label for="mail_konto_id" class="block text-sm font-medium text-gray-700">
+                                Absender <span class="font-normal text-gray-400">(Postfach)</span>
+                            </label>
+                            <select id="mail_konto_id" name="mail_konto_id" x-model="kontoId" @change="kontoGewechselt"
+                                    class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">Standard ({{ config('mail.from.address') }})</option>
+                                @foreach ($konten as $konto)
+                                    <option value="{{ $konto->id }}">{{ $konto->bezeichnung }} ({{ $konto->absender_mail }})</option>
+                                @endforeach
+                            </select>
+                            <p class="mt-1 text-xs text-gray-500">
+                                @if ($konten->isEmpty())
+                                    Weitere Postfächer legt die Verwaltung unter Maillog → SMTP-Absender an.
+                                @else
+                                    Über welches Postfach die Ausgabe rausgeht. Der Wechsel setzt Name und Antwort-an auf dessen Vorgaben.
+                                @endif
+                            </p>
+                            @error('mail_konto_id') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
                         <div>
                             <label for="absender_name" class="block text-sm font-medium text-gray-700">
-                                Absender <span class="font-normal text-gray-400">(angezeigter Name)</span>
+                                Absendername <span class="font-normal text-gray-400">(wird angezeigt)</span>
                             </label>
                             <input id="absender_name" name="absender_name" type="text" maxlength="120"
                                    x-model="absenderName"
                                    placeholder="{{ config('mail.from.name') }}"
                                    class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <p class="mt-1 text-xs text-gray-500">Leer = „{{ config('mail.from.name') }}". Die Absenderadresse bleibt immer {{ config('mail.from.address') }}.</p>
+                            <p class="mt-1 text-xs text-gray-500">Leer = Vorgabe des gewählten Postfachs bzw. „{{ config('mail.from.name') }}".</p>
                             @error('absender_name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                         </div>
 
@@ -94,7 +121,7 @@
                                    x-model="antwortAn"
                                    placeholder="redaktion@example.org"
                                    class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <p class="mt-1 text-xs text-gray-500">Wer auf die Mail antwortet, schreibt an diese Adresse. Leer = Standard der Instanz.</p>
+                            <p class="mt-1 text-xs text-gray-500">Wer auf die Mail antwortet, schreibt an diese Adresse. Leer = Vorgabe des Postfachs bzw. Standard der Instanz.</p>
                             @error('antwort_an') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                         </div>
                     </div>
@@ -421,6 +448,7 @@
                 betreff: @js(old('betreff', $kampagne->betreff ?? '')),
                 absenderName: @js(old('absender_name', $kampagne->absender_name ?? '')),
                 antwortAn: @js(old('antwort_an', $kampagne->antwort_an ?? '')),
+                kontoId: @js((string) old('mail_konto_id', $kampagne->mail_konto_id ?? '')),
 
                 // Oberfläche
                 codeReiter: 'html',
@@ -593,12 +621,22 @@
                 },
 
                 // ── Vorschau ────────────────────────────────────────────────
+                // Dropdown „Absender" gewechselt: Name und Antwort-an mit den Vorgaben
+                // des gewählten Kontos ersetzen (Standard = Werte der Instanz). Beide
+                // Felder bleiben danach frei editierbar.
+                kontoGewechselt() {
+                    const konto = config.konten.find(k => k.id === this.kontoId);
+                    this.absenderName = konto ? konto.name : config.standardName;
+                    this.antwortAn = konto ? konto.antwort : '';
+                },
+
                 formularwerte() {
                     return {
                         titel: this.titel,
                         betreff: this.betreff,
                         absender_name: this.absenderName,
                         antwort_an: this.antwortAn,
+                        mail_konto_id: this.kontoId,
                         modus: this.modus,
                         mit_rahmen: this.mitRahmen,
                         bausteine: JSON.stringify(this.bausteine),

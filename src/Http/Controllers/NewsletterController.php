@@ -51,6 +51,7 @@ class NewsletterController extends Controller
                 'mit_rahmen' => true,
             ]),
             'rollen' => Empfaengerkreis::rollen(),
+            'konten' => Zusteller::konten(),
         ]);
     }
 
@@ -71,6 +72,7 @@ class NewsletterController extends Controller
         return view('newsletter::form', [
             'kampagne' => $kampagne,
             'rollen' => Empfaengerkreis::rollen(),
+            'konten' => Zusteller::konten(),
         ]);
     }
 
@@ -298,10 +300,13 @@ class NewsletterController extends Controller
         // markieren wir trotzdem, damit sie im Maillog als „Newsletter" steht.
         $absenderName = trim((string) $request->input('absender_name')) ?: null;
         $antwortAn = trim((string) $request->input('antwort_an')) ?: null;
+        $konto = $request->filled('mail_konto_id')
+            ? Zusteller::konten()->firstWhere('id', (int) $request->input('mail_konto_id'))
+            : null;
 
-        Mail::html($fertig['html'], function ($nachricht) use ($daten, $fertig, $absenderName, $antwortAn) {
+        Mail::html($fertig['html'], function ($nachricht) use ($daten, $fertig, $absenderName, $antwortAn, $konto) {
             $nachricht->to($daten['an'])->subject('[TEST] '.$fertig['betreff'])->text($fertig['text']);
-            Zusteller::absenderSetzen($nachricht, $absenderName, $antwortAn);
+            Zusteller::absenderSetzen($nachricht, $absenderName, $antwortAn, $konto);
             VorlagenMailer::quelleMarkieren($nachricht, Zusteller::QUELLE);
         });
 
@@ -346,6 +351,7 @@ class NewsletterController extends Controller
             'betreff' => ['required', 'string', 'max:200'],
             'absender_name' => ['nullable', 'string', 'max:120'],
             'antwort_an' => ['nullable', 'email', 'max:191'],
+            'mail_konto_id' => ['nullable', 'integer', Rule::in(Zusteller::konten()->pluck('id')->all())],
             'modus' => ['required', Rule::in([Kampagne::MODUS_BAUSTEINE, Kampagne::MODUS_CODE])],
             'mit_rahmen' => ['nullable', 'boolean'],
             'zielgruppen' => ['array'],
@@ -360,6 +366,7 @@ class NewsletterController extends Controller
             'betreff' => trim((string) $request->input('betreff')),
             'absender_name' => trim((string) $request->input('absender_name')) ?: null,
             'antwort_an' => trim((string) $request->input('antwort_an')) ?: null,
+            'mail_konto_id' => $request->filled('mail_konto_id') ? (int) $request->input('mail_konto_id') : null,
             'modus' => $request->input('modus'),
             // Nur im Code-Modus abwählbar; der Baukasten braucht den Rahmen immer.
             'mit_rahmen' => $request->input('modus') === Kampagne::MODUS_CODE
