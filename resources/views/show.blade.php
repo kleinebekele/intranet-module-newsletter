@@ -36,6 +36,13 @@
                 </span>
             </div>
             <p class="mt-1 text-sm text-gray-500">Betreff: <span class="text-gray-800">{{ $kampagne->betreff }}</span></p>
+            <p class="mt-0.5 text-sm text-gray-500">
+                Absender: <span class="text-gray-800">{{ $kampagne->absender_name ?: config('mail.from.name') }}</span>
+                <span class="text-gray-400">&lt;{{ config('mail.from.address') }}&gt;</span>
+                @if ($kampagne->antwort_an)
+                    · Antworten an: <span class="text-gray-800">{{ $kampagne->antwort_an }}</span>
+                @endif
+            </p>
 
             {{-- Die fertige Mail samt Rahmen, Kopf und Fuß – so, wie sie ankommt.
                  Im Iframe, damit das Mail-CSS nicht mit dem Intranet-Layout kollidiert. --}}

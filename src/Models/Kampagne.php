@@ -35,7 +35,7 @@ class Kampagne extends Model
 
     protected $table = 'newsletter_kampagnen';
 
-    protected $fillable = ['titel', 'betreff', 'modus', 'mit_rahmen', 'bausteine', 'html', 'text', 'zielgruppen', 'erstellt_von'];
+    protected $fillable = ['titel', 'betreff', 'absender_name', 'antwort_an', 'modus', 'mit_rahmen', 'bausteine', 'html', 'text', 'zielgruppen', 'erstellt_von'];
 
     /**
      * Ein frisch erstelltes Objekt ist sofort ein Entwurf – nicht erst, nachdem

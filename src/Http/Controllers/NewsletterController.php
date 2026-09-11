@@ -296,8 +296,12 @@ class NewsletterController extends Controller
         // Bewusst NICHT über den Zusteller: Die Testmail trägt ein [TEST] im
         // Betreff und geht an genau eine frei gewählte Adresse. Den Auslöser
         // markieren wir trotzdem, damit sie im Maillog als „Newsletter" steht.
-        Mail::html($fertig['html'], function ($nachricht) use ($daten, $fertig) {
+        $absenderName = trim((string) $request->input('absender_name')) ?: null;
+        $antwortAn = trim((string) $request->input('antwort_an')) ?: null;
+
+        Mail::html($fertig['html'], function ($nachricht) use ($daten, $fertig, $absenderName, $antwortAn) {
             $nachricht->to($daten['an'])->subject('[TEST] '.$fertig['betreff'])->text($fertig['text']);
+            Zusteller::absenderSetzen($nachricht, $absenderName, $antwortAn);
             VorlagenMailer::quelleMarkieren($nachricht, Zusteller::QUELLE);
         });
 
@@ -340,6 +344,8 @@ class NewsletterController extends Controller
         $request->validate([
             'titel' => ['required', 'string', 'max:120'],
             'betreff' => ['required', 'string', 'max:200'],
+            'absender_name' => ['nullable', 'string', 'max:120'],
+            'antwort_an' => ['nullable', 'email', 'max:191'],
             'modus' => ['required', Rule::in([Kampagne::MODUS_BAUSTEINE, Kampagne::MODUS_CODE])],
             'mit_rahmen' => ['nullable', 'boolean'],
             'zielgruppen' => ['array'],
@@ -352,6 +358,8 @@ class NewsletterController extends Controller
         return [
             'titel' => trim((string) $request->input('titel')),
             'betreff' => trim((string) $request->input('betreff')),
+            'absender_name' => trim((string) $request->input('absender_name')) ?: null,
+            'antwort_an' => trim((string) $request->input('antwort_an')) ?: null,
             'modus' => $request->input('modus'),
             // Nur im Code-Modus abwählbar; der Baukasten braucht den Rahmen immer.
             'mit_rahmen' => $request->input('modus') === Kampagne::MODUS_CODE

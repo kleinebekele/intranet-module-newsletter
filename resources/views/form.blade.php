@@ -71,6 +71,34 @@
                         </div>
                     </div>
 
+                    {{-- Absender je Ausgabe: nur der angezeigte Name (die Adresse bleibt
+                         die der Instanz) und eine Antwort-an-Adresse. Leer = Standard. --}}
+                    <div class="mt-4 grid gap-4 border-t border-gray-100 pt-4 sm:grid-cols-2">
+                        <div>
+                            <label for="absender_name" class="block text-sm font-medium text-gray-700">
+                                Absender <span class="font-normal text-gray-400">(angezeigter Name)</span>
+                            </label>
+                            <input id="absender_name" name="absender_name" type="text" maxlength="120"
+                                   x-model="absenderName"
+                                   placeholder="{{ config('mail.from.name') }}"
+                                   class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <p class="mt-1 text-xs text-gray-500">Leer = „{{ config('mail.from.name') }}". Die Absenderadresse bleibt immer {{ config('mail.from.address') }}.</p>
+                            @error('absender_name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label for="antwort_an" class="block text-sm font-medium text-gray-700">
+                                Antworten an <span class="font-normal text-gray-400">(Mailadresse)</span>
+                            </label>
+                            <input id="antwort_an" name="antwort_an" type="email" maxlength="191"
+                                   x-model="antwortAn"
+                                   placeholder="redaktion@example.org"
+                                   class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <p class="mt-1 text-xs text-gray-500">Wer auf die Mail antwortet, schreibt an diese Adresse. Leer = Standard der Instanz.</p>
+                            @error('antwort_an') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+
                     {{-- Platzhalter gelten in BEIDEN Modi: im Baukasten getippt oder
                          im eigenen Code geschrieben – ersetzt wird beides. --}}
                     <div class="mt-4 border-t border-gray-100 pt-4">
@@ -391,6 +419,8 @@
                 text: config.text,
                 titel: @js(old('titel', $kampagne->titel ?? '')),
                 betreff: @js(old('betreff', $kampagne->betreff ?? '')),
+                absenderName: @js(old('absender_name', $kampagne->absender_name ?? '')),
+                antwortAn: @js(old('antwort_an', $kampagne->antwort_an ?? '')),
 
                 // Oberfläche
                 codeReiter: 'html',
@@ -567,6 +597,8 @@
                     return {
                         titel: this.titel,
                         betreff: this.betreff,
+                        absender_name: this.absenderName,
+                        antwort_an: this.antwortAn,
                         modus: this.modus,
                         mit_rahmen: this.mitRahmen,
                         bausteine: JSON.stringify(this.bausteine),

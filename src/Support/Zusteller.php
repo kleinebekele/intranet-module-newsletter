@@ -94,32 +94,37 @@ class Zusteller
         string $text,
         array $werte,
         ?string $referenz = null,
+        ?string $absenderName = null,
+        ?string $antwortAn = null,
     ): void {
-        $werte = self::werteMitBetreff($betreff, $werte);
+        // Beide Fassungen (mit und ohne Rahmen) laufen über dieselbe Stelle:
+        // erst fertig rendern, dann EINE Mail bauen – so bekommen beide denselben
+        // Absender, Antwort-an, Auslöser und die Referenz fürs Maillog.
+        $fertig = self::rendern($mailer, $mitRahmen, $betreff, $html, $text, $werte);
 
-        if ($mitRahmen) {
-            $mailer->senden(
-                NewsletterServiceProvider::VORLAGE,
-                $an,
-                $werte + ['inhalt' => Platzhalter::ersetzen($html, $werte)],
-                ['inhalt' => Platzhalter::ersetzen($text, $werte)],
-                self::QUELLE,
-                $referenz,
-            );
-
-            return;
-        }
-
-        // Ohne Rahmen: direkt verschicken, ohne Vorlage. Auslöser UND Referenz
-        // trotzdem markieren, damit auch diese Mails im Maillog als „Newsletter"
-        // stehen und der Ausgabe zugeordnet werden können.
-        $fertigHtml = Platzhalter::ersetzen($html, $werte);
-        $fertigText = Platzhalter::ersetzen($text, $werte);
-        $fertigBetreff = $werte['betreff'];
-
-        Mail::html($fertigHtml, function ($nachricht) use ($an, $fertigBetreff, $fertigText, $referenz) {
-            $nachricht->to($an)->subject($fertigBetreff)->text($fertigText);
+        Mail::html($fertig['html'], function ($nachricht) use ($an, $fertig, $referenz, $absenderName, $antwortAn) {
+            $nachricht->to($an)->subject($fertig['betreff'])->text($fertig['text']);
+            self::absenderSetzen($nachricht, $absenderName, $antwortAn);
             VorlagenMailer::quelleMarkieren($nachricht, self::QUELLE, $referenz);
         });
+    }
+
+    /**
+     * Eigener Absender je Ausgabe: nur der angezeigte NAME wird ersetzt – die
+     * Adresse bleibt die der Instanz (eine fremde Absenderadresse landet im
+     * Spam). Antwort-an lenkt Rückfragen z. B. ins Postfach der Redaktion.
+     * Beides leer = so, wie die Instanz es vorgibt. Eine Absender-Zeile in der
+     * Verwaltung (Maillog → Absender, Modul Core / Auslöser Newsletter) gewinnt
+     * beim Einliefern trotzdem – das ist dort so gewollt.
+     */
+    public static function absenderSetzen(\Illuminate\Mail\Message $nachricht, ?string $absenderName, ?string $antwortAn): void
+    {
+        if (filled($absenderName)) {
+            $nachricht->from((string) config('mail.from.address'), $absenderName);
+        }
+
+        if (filled($antwortAn)) {
+            $nachricht->replyTo($antwortAn);
+        }
     }
 }

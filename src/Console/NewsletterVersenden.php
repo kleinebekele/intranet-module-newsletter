@@ -125,6 +125,8 @@ class NewsletterVersenden extends Command
                 $text,
                 $werte,
                 $kampagne->mailReferenz($empfaenger->id),
+                $kampagne->absender_name,
+                $kampagne->antwort_an,
             );
 
             // Die tatsächlich genutzte Adresse festhalten (kann von der beim

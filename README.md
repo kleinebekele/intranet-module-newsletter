@@ -119,6 +119,18 @@ Beides ist im Backend bearbeitbar, hat Live-Vorschau, Testmail und „Standard w
 älteren Core meldet das Modul seine Vorlagen nicht an und der Versand fällt auf den
 allgemeinen Rahmen zurück.
 
+## Absender je Ausgabe
+
+Jede Ausgabe kann einen eigenen **Absendernamen** und eine **Antwort-an-Adresse** tragen
+(im Editor unter Titel/Betreff). Nur der angezeigte Name ändert sich – die Absenderadresse
+bleibt die der Instanz (`MAIL_FROM_ADDRESS`), weil eine fremde Absenderadresse ohne
+SPF/DKIM der eigenen Domain im Spam landet. Antworten gehen dann z. B. ins Postfach der
+Redaktion statt ins Systempostfach. Beides leer = Standard der Instanz.
+
+Eine Absender-Zeile in der Verwaltung (Maillog → Absender, Modul *Core*, Auslöser
+*Newsletter*) gewinnt beim Einliefern über die Angaben der Ausgabe. Verschiedene
+SMTP-Konten je Absender gibt es (noch) nicht – das wäre eine Erweiterung des Core-Ausgangskorbs.
+
 ## Wer darf schreiben?
 
 Wer das Modul sehen darf, darf auch schreiben und freigeben. Für eine eigene Redaktion legt
