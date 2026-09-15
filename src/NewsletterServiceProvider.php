@@ -22,7 +22,7 @@ class NewsletterServiceProvider extends ModuleServiceProvider
     /**
      * Schlüssel, unter dem der Newsletter-Rahmen bis v1.7 in der Verwaltung
      * lag. Nur noch für die Übernahme einer dort angepassten Fassung ins Modul
-     * (Migration 2026_09_15_120000).
+     * (Migration 2026_09_15_130000).
      */
     public const RAHMEN = '_rahmen_newsletter';
 
