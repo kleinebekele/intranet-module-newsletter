@@ -102,6 +102,19 @@ anlegt, kann sie sofort anschreiben. Zusätzlich gibt es „Alle Benutzer".
 Immer ausgeschlossen: gesperrte Konten und Adressen, an die nicht zugestellt werden kann.
 Die Aufschlüsselung („erreicht 412 von 917") steht schon im Formular, **bevor** man freigibt.
 
+### Eigene Gruppen (manuell)
+
+Wer eine Ausgabe anlegt, kann sich über **„+ Eigene Gruppe"** (Modal) persönliche Zielgruppen
+zusammenstellen (Tabelle `newsletter_gruppen`, je Benutzer): Rollen und einzelne Kontakte
+**einschließen**, Rollen und Kontakte **ausschließen** – Ausschluss gewinnt. Die Gruppe gehört
+ihrem Ersteller; nur er sieht und pflegt sie (Bearbeiten/Löschen im Modal). In der Auswahl stehen
+manuelle Gruppen immer ganz oben mit der Kennzeichnung *manuell*.
+
+In der Ausgabe steht die Gruppe als Zielgruppe `gruppe:<id>`. Nutzt eine Ausgabe die Gruppe eines
+anderen Benutzers, bleibt der Haken beim Speichern erhalten (Anzeige „von <Name>", nicht
+bearbeitbar). Eine gelöschte Gruppe löst sich zu niemandem auf und fällt beim nächsten Speichern
+aus der Ausgabe.
+
 ## Vorlagen
 
 Unter *Verwaltung → Mailvorlagen* meldet das Modul **einen** Eintrag an:

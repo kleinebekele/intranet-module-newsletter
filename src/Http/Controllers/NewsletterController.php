@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Intranet\Modules\Newsletter\Models\Empfaenger;
+use Intranet\Modules\Newsletter\Models\Gruppe;
 use Intranet\Modules\Newsletter\Models\Kampagne;
 use Intranet\Modules\Newsletter\Models\Vorlage;
 use Intranet\Modules\Newsletter\Support\Bausteine;
@@ -44,21 +45,18 @@ class NewsletterController extends Controller
         ]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
-        return view('newsletter::form', [
-            'kampagne' => new Kampagne([
-                'bausteine' => [],
-                'zielgruppen' => [],
-                'mit_rahmen' => true,
-                // Die Standardvorlage der Redaktion vorbelegen – oder null für
-                // den allgemeinen Rahmen des Intranets.
-                'vorlage_id' => Vorlage::standard()?->id,
-            ]),
-            'rollen' => Empfaengerkreis::rollen(),
-            'konten' => Zusteller::konten(),
-            'vorlagen' => Vorlage::orderBy('name')->get(),
+        $kampagne = new Kampagne([
+            'bausteine' => [],
+            'zielgruppen' => [],
+            'mit_rahmen' => true,
+            // Die Standardvorlage der Redaktion vorbelegen – oder null für
+            // den allgemeinen Rahmen des Intranets.
+            'vorlage_id' => Vorlage::standard()?->id,
         ]);
+
+        return view('newsletter::form', $this->formularDaten($request, $kampagne));
     }
 
     public function store(Request $request): RedirectResponse
@@ -71,23 +69,51 @@ class NewsletterController extends Controller
             ->with('status', 'Ausgabe angelegt. Verschickt ist noch nichts.');
     }
 
-    public function edit(Kampagne $kampagne): View
+    public function edit(Request $request, Kampagne $kampagne): View
     {
         abort_unless($kampagne->istEntwurf(), 403);
 
-        return view('newsletter::form', [
+        return view('newsletter::form', $this->formularDaten($request, $kampagne));
+    }
+
+    /**
+     * Alles, was das Formular neben der Ausgabe braucht – u. a. die manuellen
+     * Gruppen: die EIGENEN (bearbeitbar) und fremde, die diese Ausgabe schon
+     * nennt (nur sichtbar, damit der Haken nicht verloren geht).
+     *
+     * @return array<string, mixed>
+     */
+    private function formularDaten(Request $request, Kampagne $kampagne): array
+    {
+        $eigene = Gruppe::von($request->user())->orderBy('name')->get();
+
+        $genannt = array_values(array_filter(array_map(
+            fn ($z) => is_string($z) ? Gruppe::idAus($z) : null,
+            (array) old('zielgruppen', $kampagne->zielgruppen ?? []),
+        )));
+        $fremde = $genannt === []
+            ? collect()
+            : Gruppe::with('besitzer:id,name')->whereIn('id', $genannt)->where('user_id', '!=', $request->user()->id)->get();
+
+        return [
             'kampagne' => $kampagne,
             'rollen' => Empfaengerkreis::rollen(),
             'konten' => Zusteller::konten(),
             'vorlagen' => Vorlage::orderBy('name')->get(),
-        ]);
+            'gruppen' => $eigene->map(fn (Gruppe $g) => $g->fuerFormular())->values(),
+            'fremdeGruppen' => $fremde->map(fn (Gruppe $g) => [
+                'kennung' => $g->kennung(),
+                'name' => $g->name,
+                'besitzer' => (string) ($g->besitzer?->name ?? '–'),
+            ])->values(),
+        ];
     }
 
     public function update(Request $request, Kampagne $kampagne): RedirectResponse
     {
         abort_unless($kampagne->istEntwurf(), 403);
 
-        $kampagne->update($this->daten($request));
+        $kampagne->update($this->daten($request, $kampagne));
 
         return redirect()->route('module.newsletter.show', $kampagne)
             ->with('status', 'Ausgabe gespeichert.');
@@ -101,7 +127,18 @@ class NewsletterController extends Controller
             ? null
             : $this->empfaengerMitStatus($kampagne);
 
+        // Namen der manuellen Gruppen und Rollen für die Zielgruppen-Anzeige.
+        $gruppenIds = array_values(array_filter(array_map(
+            fn ($z) => is_string($z) ? Gruppe::idAus($z) : null,
+            $kampagne->zielgruppen ?? [],
+        )));
+        $namen = Empfaengerkreis::rollen()->pluck('name', 'role_id')->all();
+        foreach (($gruppenIds === [] ? collect() : Gruppe::whereIn('id', $gruppenIds)->get()) as $g) {
+            $namen[$g->kennung()] = $g->name.' (manuell)';
+        }
+
         return view('newsletter::show', [
+            'zielgruppenNamen' => $namen,
             'kampagne' => $kampagne->load('ersteller'),
             'fortschritt' => $kampagne->fortschritt(),
             'uebersicht' => $kampagne->istEntwurf()
@@ -270,7 +307,7 @@ class NewsletterController extends Controller
     public function reichweite(Request $request): JsonResponse
     {
         return response()->json(
-            Empfaengerkreis::uebersicht($this->zielgruppen($request)),
+            Empfaengerkreis::uebersicht($this->zielgruppen($request, null, true)),
         );
     }
 
@@ -349,7 +386,7 @@ class NewsletterController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function daten(Request $request): array
+    private function daten(Request $request, ?Kampagne $kampagne = null): array
     {
         $request->validate([
             'titel' => ['required', 'string', 'max:120'],
@@ -379,7 +416,7 @@ class NewsletterController extends Controller
             'vorlage_id' => $this->vorlageIdAusRequest($request),
             'mit_rahmen' => $this->mitRahmenAusRequest($request),
             'modus' => Kampagne::MODUS_BAUSTEINE,
-            'zielgruppen' => $this->zielgruppen($request),
+            'zielgruppen' => $this->zielgruppen($request, $kampagne),
             'bausteine' => $this->bausteine($request),
         ];
     }
@@ -430,16 +467,39 @@ class NewsletterController extends Controller
      * Nur Zielgruppen übernehmen, die es wirklich gibt. Sonst stünde in der
      * Ausgabe eine Rolle, die niemand mehr hat – und niemand bekäme sie.
      *
+     * Manuelle Gruppen (`gruppe:<id>`): die eigenen – und fremde nur, wenn die
+     * Ausgabe sie schon vorher nannte (beim Speichern durch einen anderen
+     * Benutzer geht der Haken sonst verloren). Für die Reichweiten-Vorschau
+     * (ohne Ausgabe) zählt jede vorhandene Gruppe – das ist nur eine Zahl.
+     *
      * @return array<int, string>
      */
-    private function zielgruppen(Request $request): array
+    private function zielgruppen(Request $request, ?Kampagne $kampagne = null, bool $nurVorschau = false): array
     {
+        $gewaehlt = array_values(array_filter((array) $request->input('zielgruppen', []), 'is_string'));
+
         $erlaubt = Empfaengerkreis::rollen()
             ->pluck('role_id')
             ->push(Empfaengerkreis::ALLE)
             ->all();
 
-        $gewaehlt = array_filter((array) $request->input('zielgruppen', []), 'is_string');
+        $gruppenIds = array_values(array_filter(array_map(fn ($z) => Gruppe::idAus($z), $gewaehlt)));
+
+        if ($gruppenIds !== []) {
+            $abfrage = Gruppe::whereIn('id', $gruppenIds);
+
+            if (! $nurVorschau) {
+                $bisher = array_values(array_filter(array_map(
+                    fn ($z) => is_string($z) ? Gruppe::idAus($z) : null,
+                    $kampagne?->zielgruppen ?? [],
+                )));
+                $abfrage->where(fn ($w) => $w->where('user_id', $request->user()->id)->orWhereIn('id', $bisher ?: [0]));
+            }
+
+            foreach ($abfrage->pluck('id') as $id) {
+                $erlaubt[] = Gruppe::PRAEFIX.$id;
+            }
+        }
 
         return array_values(array_intersect($gewaehlt, $erlaubt));
     }

@@ -83,7 +83,7 @@
                 <div class="mt-2 flex flex-wrap gap-1.5">
                     @forelse ($kampagne->zielgruppen ?? [] as $gruppe)
                         <span class="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
-                            {{ $gruppe === 'alle' ? 'Alle Benutzer' : $gruppe }}
+                            {{ $gruppe === 'alle' ? 'Alle Benutzer' : ($zielgruppenNamen[$gruppe] ?? $gruppe) }}
                         </span>
                     @empty
                         <span class="text-sm text-gray-500">Keine ausgewählt.</span>

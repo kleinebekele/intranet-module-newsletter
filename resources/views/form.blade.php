@@ -32,7 +32,12 @@
                 vorschau: @js(route('module.newsletter.vorschau')),
                 testmail: @js(route('module.newsletter.testmail')),
                 bild: @js(route('module.newsletter.bild')),
+                gruppen: @js(route('module.newsletter.gruppen.store')),
+                benutzer: @js(route('module.newsletter.gruppen.benutzer')),
             },
+            gruppen: @js($gruppen),
+            gewaehlteGruppen: @js(array_values(array_filter((array) $gewaehlt, fn ($z) => is_string($z) && str_starts_with($z, 'gruppe:')))),
+            rollen: @js($rollen->map(fn ($r) => ['id' => $r->role_id, 'name' => $r->name])->values()),
             csrf: @js(csrf_token()),
             eigeneMail: @js(auth()->user()->email),
             konten: @js($konten->map(fn ($k) => ['id' => (string) $k->id, 'name' => (string) ($k->absender_name ?? ''), 'antwort' => (string) ($k->antwort_an ?? '')])->values()),
@@ -158,9 +163,36 @@
                 </section>
 
                 <section class="rounded-xl border border-gray-200 bg-white p-5">
-                    <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Wer bekommt sie?</h2>
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Wer bekommt sie?</h2>
+                        <button type="button" @click="gruppeNeu()" class="text-xs text-indigo-600 hover:underline">
+                            + Eigene Gruppe
+                        </button>
+                    </div>
 
                     <div class="mt-3 max-h-64 space-y-2 overflow-y-auto pr-1">
+                        {{-- Manuelle Gruppen: immer ganz oben, eigene bearbeitbar. --}}
+                        <template x-for="g in gruppen" :key="g.id">
+                            <label class="flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50/40 px-3 py-2 text-sm hover:bg-indigo-50">
+                                <input type="checkbox" name="zielgruppen[]" :value="g.kennung" x-model="gewaehlteGruppen"
+                                       @change="reichweiteLaden()"
+                                       class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                <span class="flex-1 text-gray-800" x-text="g.name"></span>
+                                <span class="rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-indigo-700">manuell</span>
+                                <button type="button" @click.prevent="gruppeBearbeiten(g)" class="text-xs text-indigo-600 hover:underline">Bearbeiten</button>
+                            </label>
+                        </template>
+                        @foreach ($fremdeGruppen as $fg)
+                            <label class="flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50/40 px-3 py-2 text-sm hover:bg-indigo-50">
+                                <input type="checkbox" name="zielgruppen[]" value="{{ $fg['kennung'] }}" @change="reichweiteLaden()"
+                                       @checked(in_array($fg['kennung'], $gewaehlt, true))
+                                       class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                <span class="flex-1 text-gray-800">{{ $fg['name'] }}</span>
+                                <span class="rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-indigo-700">manuell</span>
+                                <span class="text-xs text-gray-400" title="Gruppe von {{ $fg['besitzer'] }} – nur der Ersteller kann sie ändern">von {{ $fg['besitzer'] }}</span>
+                            </label>
+                        @endforeach
+
                         <label class="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50">
                             <input type="checkbox" name="zielgruppen[]" value="alle" @change="reichweiteLaden()"
                                    @checked(in_array('alle', $gewaehlt, true))
@@ -348,6 +380,88 @@
                 <span class="text-xs text-gray-500">Speichern verschickt noch nichts.</span>
             </div>
         </form>
+
+        {{-- ── Modal: eigene Gruppe anlegen/bearbeiten ─────────────────────
+             Außerhalb des Formulars, damit die Felder nicht mitgeschickt werden. --}}
+        <div x-show="modal.offen" x-cloak
+             @keydown.escape.window="modal.offen && modalSchliessen()"
+             class="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/50 p-4"
+             role="dialog" aria-modal="true" aria-label="Eigene Gruppe">
+            <div @click.outside="modalSchliessen()"
+                 class="flex max-h-full w-full max-w-3xl flex-col rounded-xl bg-white shadow-xl">
+                <div class="flex items-center justify-between border-b border-gray-200 px-5 py-4">
+                    <h3 class="font-semibold text-gray-800" x-text="modal.id ? 'Gruppe bearbeiten' : 'Eigene Gruppe anlegen'"></h3>
+                    <button type="button" @click="modalSchliessen()" class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title="Schließen">✕</button>
+                </div>
+
+                <div class="overflow-y-auto px-5 py-4">
+                    <label class="block text-sm font-medium text-gray-700">Name</label>
+                    <input type="text" x-model="modal.name" maxlength="120" placeholder="z. B. Elternrat + Hausmeister"
+                           class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <p class="mt-1 text-xs text-gray-500">Nur du siehst diese Gruppe. Ausschlüsse gewinnen gegen Einschlüsse.</p>
+
+                    <div class="mt-4 grid gap-4 md:grid-cols-2">
+                        <template x-for="seite in ['ein', 'aus']" :key="seite">
+                            <section class="rounded-lg border p-3" :class="seite === 'ein' ? 'border-emerald-200 bg-emerald-50/30' : 'border-red-200 bg-red-50/30'">
+                                <h4 class="text-xs font-semibold uppercase tracking-wide" :class="seite === 'ein' ? 'text-emerald-700' : 'text-red-700'"
+                                    x-text="seite === 'ein' ? 'Einschließen' : 'Ausschließen'"></h4>
+
+                                <div class="mt-2 text-xs font-medium text-gray-600">Gruppen (Rollen)</div>
+                                <div class="mt-1 max-h-36 space-y-1 overflow-y-auto pr-1">
+                                    <template x-for="r in rollen" :key="seite + r.id">
+                                        <label class="flex items-center gap-2 text-sm">
+                                            <input type="checkbox" :value="r.id" x-model="modal['rollen_' + seite]"
+                                                   class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                            <span x-text="r.name"></span>
+                                        </label>
+                                    </template>
+                                </div>
+
+                                <div class="mt-3 text-xs font-medium text-gray-600">Einzelne Kontakte</div>
+                                <div class="mt-1 flex flex-wrap gap-1">
+                                    <template x-for="k in modal['user_' + seite]" :key="seite + k.id">
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-xs text-gray-700 ring-1 ring-gray-300">
+                                            <span x-text="k.name"></span>
+                                            <button type="button" @click="kontaktEntfernen(seite, k.id)" class="text-gray-400 hover:text-red-600" title="Entfernen">✕</button>
+                                        </span>
+                                    </template>
+                                </div>
+                                <div class="relative mt-1" @click.outside="suche[seite].treffer = []">
+                                    <input type="text" x-model="suche[seite].text" @input.debounce.250ms="kontakteSuchen(seite)"
+                                           placeholder="Name oder E-Mail tippen …" autocomplete="off"
+                                           class="w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <ul x-show="suche[seite].treffer.length" x-cloak
+                                        class="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow">
+                                        <template x-for="t in suche[seite].treffer" :key="t.id">
+                                            <li @click="kontaktUebernehmen(seite, t)" class="cursor-pointer px-3 py-1.5 text-sm hover:bg-indigo-50">
+                                                <span x-text="t.name" class="font-medium"></span>
+                                                <span x-text="t.email" class="ml-1 text-gray-500"></span>
+                                                <span x-show="t.gesperrt" class="ml-1 text-xs text-red-600">gesperrt</span>
+                                            </li>
+                                        </template>
+                                    </ul>
+                                </div>
+                            </section>
+                        </template>
+                    </div>
+
+                    <p x-show="modal.fehler" x-cloak x-text="modal.fehler" class="mt-3 text-sm text-red-600"></p>
+                </div>
+
+                <div class="flex items-center justify-between gap-2 border-t border-gray-200 px-5 py-3">
+                    <button type="button" x-show="modal.id" @click="gruppeLoeschen()"
+                            class="text-sm text-gray-500 hover:text-red-600">Gruppe löschen</button>
+                    <span x-show="! modal.id"></span>
+                    <div class="flex gap-2">
+                        <button type="button" @click="modalSchliessen()" class="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100">Abbrechen</button>
+                        <button type="button" @click="gruppeSpeichern()" :disabled="modal.laeuft"
+                                class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
+                            <span x-text="modal.laeuft ? 'Speichere…' : 'Speichern'"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     @push('scripts')
@@ -362,6 +476,13 @@
                 antwortAn: @js(old('antwort_an', $kampagne->antwort_an ?? '')),
                 kontoId: @js((string) old('mail_konto_id', $kampagne->mail_konto_id ?? '')),
                 rahmen: @js((string) $rahmenWert),
+
+                // Manuelle Gruppen (eigene) + welche davon angehakt sind.
+                gruppen: config.gruppen || [],
+                gewaehlteGruppen: config.gewaehlteGruppen || [],
+                rollen: config.rollen || [],
+                modal: { offen: false, id: null, name: '', rollen_ein: [], rollen_aus: [], user_ein: [], user_aus: [], fehler: '', laeuft: false },
+                suche: { ein: { text: '', treffer: [] }, aus: { text: '', treffer: [] } },
 
                 // Oberfläche
                 reichweite: null,
@@ -489,6 +610,102 @@
                     }, 0));
                 },
 
+                // ── Eigene Gruppen (Modal) ──────────────────────────────────
+                gruppeNeu() {
+                    this.modal = { offen: true, id: null, name: '', rollen_ein: [], rollen_aus: [], user_ein: [], user_aus: [], fehler: '', laeuft: false };
+                    this.suche = { ein: { text: '', treffer: [] }, aus: { text: '', treffer: [] } };
+                },
+
+                gruppeBearbeiten(g) {
+                    // Kopien, damit Abbrechen nichts an der Liste ändert.
+                    this.modal = {
+                        offen: true, id: g.id, name: g.name,
+                        rollen_ein: [...g.rollen_ein], rollen_aus: [...g.rollen_aus],
+                        user_ein: g.user_ein.map(k => ({ ...k })), user_aus: g.user_aus.map(k => ({ ...k })),
+                        fehler: '', laeuft: false,
+                    };
+                    this.suche = { ein: { text: '', treffer: [] }, aus: { text: '', treffer: [] } };
+                },
+
+                modalSchliessen() { this.modal.offen = false; },
+
+                async kontakteSuchen(seite) {
+                    const q = this.suche[seite].text.trim();
+                    if (q.length < 2) { this.suche[seite].treffer = []; return; }
+                    try {
+                        const antwort = await fetch(config.urls.benutzer + '?q=' + encodeURIComponent(q), {
+                            headers: { 'Accept': 'application/json' },
+                        });
+                        const treffer = await antwort.json();
+                        const schon = new Set(this.modal['user_' + seite].map(k => k.id));
+                        this.suche[seite].treffer = treffer.filter(t => ! schon.has(t.id));
+                    } catch (e) { this.suche[seite].treffer = []; }
+                },
+
+                kontaktUebernehmen(seite, t) {
+                    this.modal['user_' + seite].push({ id: t.id, name: t.name, email: t.email });
+                    this.suche[seite] = { text: '', treffer: [] };
+                },
+
+                kontaktEntfernen(seite, id) {
+                    this.modal['user_' + seite] = this.modal['user_' + seite].filter(k => k.id !== id);
+                },
+
+                async gruppeSpeichern() {
+                    if (! this.modal.name.trim()) { this.modal.fehler = 'Bitte einen Namen eingeben.'; return; }
+                    if (! this.modal.rollen_ein.length && ! this.modal.user_ein.length) {
+                        this.modal.fehler = 'Mindestens eine Gruppe oder einen Kontakt einschließen – sonst wäre die Gruppe leer.';
+                        return;
+                    }
+
+                    this.modal.laeuft = true;
+                    this.modal.fehler = '';
+
+                    const daten = {
+                        name: this.modal.name,
+                        rollen_ein: this.modal.rollen_ein,
+                        rollen_aus: this.modal.rollen_aus,
+                        user_ein: this.modal.user_ein.map(k => k.id),
+                        user_aus: this.modal.user_aus.map(k => k.id),
+                    };
+                    const url = this.modal.id ? config.urls.gruppen + '/' + this.modal.id : config.urls.gruppen;
+                    const antwort = await this.holen(url, daten, this.modal.id ? 'PUT' : 'POST');
+
+                    this.modal.laeuft = false;
+
+                    if (! antwort || ! antwort.gruppe) {
+                        this.modal.fehler = antwort?.message ?? 'Speichern fehlgeschlagen.';
+                        return;
+                    }
+
+                    const i = this.gruppen.findIndex(g => g.id === antwort.gruppe.id);
+                    if (i >= 0) {
+                        this.gruppen.splice(i, 1, antwort.gruppe);
+                    } else {
+                        this.gruppen.push(antwort.gruppe);
+                        this.gruppen.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+                        // Eine neue Gruppe will man in der Regel sofort anschreiben.
+                        if (! this.gewaehlteGruppen.includes(antwort.gruppe.kennung)) this.gewaehlteGruppen.push(antwort.gruppe.kennung);
+                    }
+
+                    this.modal.offen = false;
+                    this.$nextTick(() => this.reichweiteLaden());
+                },
+
+                async gruppeLoeschen() {
+                    if (! this.modal.id) return;
+                    if (! confirm('Gruppe „' + this.modal.name + '“ löschen? Ausgaben, die sie nutzen, verlieren diese Zielgruppe.')) return;
+
+                    const antwort = await this.holen(config.urls.gruppen + '/' + this.modal.id, {}, 'DELETE');
+                    if (! antwort?.ok) { this.modal.fehler = 'Löschen fehlgeschlagen.'; return; }
+
+                    const kennung = 'gruppe:' + this.modal.id;
+                    this.gruppen = this.gruppen.filter(g => g.id !== this.modal.id);
+                    this.gewaehlteGruppen = this.gewaehlteGruppen.filter(k => k !== kennung);
+                    this.modal.offen = false;
+                    this.$nextTick(() => this.reichweiteLaden());
+                },
+
                 // ── Empfänger ───────────────────────────────────────────────
                 gewaehlteZielgruppen() {
                     return [...document.querySelectorAll('input[name="zielgruppen[]"]:checked')].map(e => e.value);
@@ -558,10 +775,10 @@
                     this.testLaeuft = false;
                 },
 
-                async holen(url, daten) {
+                async holen(url, daten, methode = 'POST') {
                     try {
                         const antwort = await fetch(url, {
-                            method: 'POST',
+                            method: methode,
                             headers: {
                                 'Content-Type': 'application/json',
                                 'Accept': 'application/json',

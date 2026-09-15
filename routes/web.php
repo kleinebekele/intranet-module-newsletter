@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Intranet\Modules\Newsletter\Http\Controllers\GruppeController;
 use Intranet\Modules\Newsletter\Http\Controllers\NewsletterController;
 use Intranet\Modules\Newsletter\Http\Controllers\VorlageController;
 
@@ -30,6 +31,14 @@ Route::middleware(['web', 'auth'])
         Route::post('/vorschau', [NewsletterController::class, 'vorschau'])->name('vorschau');
         Route::post('/testmail', [NewsletterController::class, 'testmail'])->name('testmail');
         Route::post('/bild', [NewsletterController::class, 'bild'])->name('bild');
+
+        // Persönliche Zielgruppen (Modal im Ausgabe-Formular, JSON). Vor {kampagne}.
+        Route::prefix('gruppen')->name('gruppen.')->group(function () {
+            Route::get('/benutzer', [GruppeController::class, 'benutzerSuche'])->name('benutzer');
+            Route::post('/', [GruppeController::class, 'store'])->name('store');
+            Route::put('/{gruppe}', [GruppeController::class, 'update'])->name('update');
+            Route::delete('/{gruppe}', [GruppeController::class, 'destroy'])->name('destroy');
+        });
 
         // Eigene Mailvorlagen (Rahmen) der Redaktion – Menüpunkt „Mailvorlagen".
         // Ebenfalls vor {kampagne}, damit „vorlagen" keine Ausgaben-ID wird.

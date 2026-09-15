@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Support\Zustellbarkeit;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Intranet\Modules\Newsletter\Models\Gruppe;
 
 /**
  * Wer bekommt diese Ausgabe?
@@ -99,13 +100,27 @@ class Empfaengerkreis
             return $abfrage;
         }
 
-        $rollen = array_values(array_filter($zielgruppen, fn ($z) => is_string($z) && $z !== ''));
+        $eintraege = array_values(array_filter($zielgruppen, fn ($z) => is_string($z) && $z !== ''));
 
-        if ($rollen === []) {
+        // Manuelle Gruppen (`gruppe:<id>`) von den Rollen trennen.
+        $gruppenIds = array_values(array_filter(array_map(fn ($z) => Gruppe::idAus($z), $eintraege)));
+        $rollen = array_values(array_filter($eintraege, fn ($z) => Gruppe::idAus($z) === null));
+        $gruppen = $gruppenIds === [] ? collect() : Gruppe::whereIn('id', $gruppenIds)->get();
+
+        if ($rollen === [] && $gruppen->isEmpty()) {
             // Keine Auswahl heißt keine Empfänger – nicht etwa „alle".
             return $abfrage->whereRaw('1 = 0');
         }
 
-        return $abfrage->whereHas('roles', fn (Builder $q) => $q->whereIn('roles.role_id', $rollen));
+        // Rollen ODER eine der Gruppen – jede Gruppe bringt ihre eigenen
+        // Ein-/Ausschlüsse mit; ein Ausschluss gilt nur innerhalb SEINER Gruppe.
+        return $abfrage->where(function (Builder $q) use ($rollen, $gruppen): void {
+            if ($rollen !== []) {
+                $q->orWhereHas('roles', fn (Builder $x) => $x->whereIn('roles.role_id', $rollen));
+            }
+            foreach ($gruppen as $gruppe) {
+                $q->orWhere(fn (Builder $x) => $gruppe->anwenden($x));
+            }
+        });
     }
 }
