@@ -3,38 +3,48 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Intranet\Modules\Newsletter\NewsletterServiceProvider;
 
 /**
  * Der Newsletter-Rahmen zieht aus Verwaltung → Mailvorlagen ins Modul um.
  *
- * Bis v1.7 lag er dort als `_rahmen_newsletter`. Hat jemand ihn angepasst
- * (Zeile in `mail_vorlagen`), wandert diese Fassung als normale Vorlage nach
- * `newsletter_vorlagen` – nicht als Standard: Ohne gewählte Vorlage gilt ab
- * jetzt der allgemeine Rahmen des Intranets. Die alte Zeile bleibt stehen
- * (sie stört nicht und ist der Beleg, was übernommen wurde).
+ * Bis v1.7 lag er dort als `_rahmen_newsletter`. Er wird als Vorlage
+ * „Newsletter-Rahmen" nach `newsletter_vorlagen` übernommen – in der dort
+ * angepassten Fassung, sonst als mitgelieferter Rahmen des Moduls. Nicht als
+ * Standard: Ohne gewählte Vorlage gilt der allgemeine Rahmen des Intranets.
+ * Die alte Zeile in `mail_vorlagen` bleibt stehen (sie stört nicht und ist
+ * der Beleg, was übernommen wurde).
  */
 return new class extends Migration
 {
+    private const NAME = 'Newsletter-Rahmen';
+
     public function up(): void
     {
-        if (! Schema::hasTable('mail_vorlagen') || ! Schema::hasTable('newsletter_vorlagen')) {
+        if (! Schema::hasTable('newsletter_vorlagen')) {
             return;
         }
 
-        $alt = DB::table('mail_vorlagen')->where('schluessel', '_rahmen_newsletter')->first();
-
-        if ($alt === null || trim((string) $alt->html) === '') {
+        if (DB::table('newsletter_vorlagen')->where('name', self::NAME)->exists()) {
             return;
         }
 
-        if (DB::table('newsletter_vorlagen')->where('name', 'Newsletter-Rahmen (aus der Verwaltung)')->exists()) {
-            return;
+        $html = NewsletterServiceProvider::RAHMEN_HTML;
+        $text = NewsletterServiceProvider::RAHMEN_TEXT;
+
+        if (Schema::hasTable('mail_vorlagen')) {
+            $alt = DB::table('mail_vorlagen')->where('schluessel', NewsletterServiceProvider::RAHMEN)->first();
+
+            if ($alt !== null && trim((string) $alt->html) !== '') {
+                $html = (string) $alt->html;
+                $text = trim((string) ($alt->text ?? '')) ?: $text;
+            }
         }
 
         DB::table('newsletter_vorlagen')->insert([
-            'name' => 'Newsletter-Rahmen (aus der Verwaltung)',
-            'html' => (string) $alt->html,
-            'text' => trim((string) ($alt->text ?? '')) ?: null,
+            'name' => self::NAME,
+            'html' => $html,
+            'text' => $text,
             'ist_standard' => false,
             'created_at' => now(),
             'updated_at' => now(),

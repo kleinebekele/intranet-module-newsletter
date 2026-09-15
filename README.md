@@ -131,10 +131,10 @@ mitgelieferten Newsletter-Rahmen (640 px, farbiger Streifen).
 - Wird eine Vorlage gelöscht, fallen die betroffenen Ausgaben auf den allgemeinen Rahmen
   zurück (Spalte `vorlage_id` ohne Fremdschlüssel).
 
-**Umzug aus der Verwaltung (Migration `2026_09_15_120000`):** War `_rahmen_newsletter` dort
-angepasst, wird diese Fassung als Vorlage „Newsletter-Rahmen (aus der Verwaltung)" ins Modul
-übernommen – nicht als Standard. Die alte Zeile in `mail_vorlagen` bleibt stehen, wird aber
-nicht mehr angezeigt.
+**Umzug aus der Verwaltung (Migration `2026_09_15_120000`):** Die Vorlage „Newsletter-Rahmen"
+wird im Modul angelegt – in der Fassung, die unter `_rahmen_newsletter` in der Verwaltung
+angepasst war, sonst als mitgelieferter Rahmen. Nicht als Standard. Die alte Zeile in
+`mail_vorlagen` bleibt stehen, wird aber nicht mehr angezeigt.
 
 Technisch meldet `Zusteller::imEigenenRahmen()` die gewählte Vorlage für den jeweiligen
 Render-Aufruf als Rahmen `_rahmen_newsletter_eigen` im Core-Register an und biegt die Vorlage
