@@ -426,12 +426,14 @@
                                         </span>
                                     </template>
                                 </div>
-                                <div class="relative mt-1" @click.outside="suche[seite].treffer = []">
+                                <div class="mt-1" @click.outside="suche[seite].treffer = []">
                                     <input type="text" x-model="suche[seite].text" @input.debounce.250ms="kontakteSuchen(seite)"
                                            placeholder="Name oder E-Mail tippen …" autocomplete="off"
                                            class="w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    {{-- Im Fluss statt absolut: Der Modal-Körper scrollt (overflow-y-auto)
+                                         und würde eine absolut positionierte Liste abschneiden. --}}
                                     <ul x-show="suche[seite].treffer.length" x-cloak
-                                        class="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow">
+                                        class="mt-1 max-h-48 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow">
                                         <template x-for="t in suche[seite].treffer" :key="t.id">
                                             <li @click="kontaktUebernehmen(seite, t)" class="cursor-pointer px-3 py-1.5 text-sm hover:bg-indigo-50">
                                                 <span x-text="t.name" class="font-medium"></span>
