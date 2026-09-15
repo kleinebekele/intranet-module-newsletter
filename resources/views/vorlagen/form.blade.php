@@ -171,12 +171,19 @@
 
                     if (this.reiter === 'html') this.html = neu; else this.text = neu;
 
-                    // Cursor hinter den eingefügten Platzhalter setzen – nach dem
-                    // Rendern, sonst überschreibt Alpine die Auswahl wieder.
-                    this.$nextTick(() => {
+                    // Cursor hinter den eingefügten Platzhalter setzen und die Stelle
+                    // ins Bild scrollen – erst nach dem Rendern (sonst überschreibt
+                    // Alpine die Auswahl) und nach dem Klick (sonst holt sich der
+                    // Knopf den Fokus zurück). War das Feld noch nie fokussiert, fügt
+                    // der Browser am Ende ein – ohne Scrollen sähe man davon nichts.
+                    const pos = von + marke.length;
+                    this.$nextTick(() => setTimeout(() => {
                         feld.focus();
-                        feld.setSelectionRange(von + marke.length, von + marke.length);
-                    });
+                        feld.setSelectionRange(pos, pos);
+                        const zeile = neu.slice(0, pos).split('\n').length;
+                        const zeilen = neu.split('\n').length || 1;
+                        feld.scrollTop = Math.max(0, (zeile / zeilen) * feld.scrollHeight - feld.clientHeight / 2);
+                    }, 0));
                     this.nachVorschau();
                 },
 
