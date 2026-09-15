@@ -28,7 +28,9 @@ class NewsletterServiceProvider extends ModuleServiceProvider
     {
         return ModuleManifest::make('newsletter', 'Newsletter', icon: 'envelope')
             ->item('index', 'Ausgaben', 'module.newsletter.index', icon: 'list')
-            ->item('create', 'Neue Ausgabe', 'module.newsletter.create', icon: 'plus');
+            ->item('create', 'Neue Ausgabe', 'module.newsletter.create', icon: 'plus')
+            // Eigene Rahmen der Redaktion – ohne Umweg über Verwaltung → Mailvorlagen.
+            ->item('vorlagen', 'Mailvorlagen', 'module.newsletter.vorlagen.index', icon: 'layout');
     }
 
     public function boot(): void

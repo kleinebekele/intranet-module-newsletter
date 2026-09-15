@@ -16,6 +16,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Intranet\Modules\Newsletter\Models\Empfaenger;
 use Intranet\Modules\Newsletter\Models\Kampagne;
+use Intranet\Modules\Newsletter\Models\Vorlage;
 use Intranet\Modules\Newsletter\Support\Bausteine;
 use Intranet\Modules\Newsletter\Support\Empfaengerkreis;
 use Intranet\Modules\Newsletter\Support\Zusteller;
@@ -49,9 +50,13 @@ class NewsletterController extends Controller
                 'zielgruppen' => [],
                 'modus' => Kampagne::MODUS_BAUSTEINE,
                 'mit_rahmen' => true,
+                // Die Standardvorlage der Redaktion vorbelegen – oder null für
+                // den Rahmen aus der Verwaltung.
+                'vorlage_id' => Vorlage::standard()?->id,
             ]),
             'rollen' => Empfaengerkreis::rollen(),
             'konten' => Zusteller::konten(),
+            'vorlagen' => Vorlage::orderBy('name')->get(),
         ]);
     }
 
@@ -73,6 +78,7 @@ class NewsletterController extends Controller
             'kampagne' => $kampagne,
             'rollen' => Empfaengerkreis::rollen(),
             'konten' => Zusteller::konten(),
+            'vorlagen' => Vorlage::orderBy('name')->get(),
         ]);
     }
 
@@ -122,6 +128,7 @@ class NewsletterController extends Controller
                 'betreff' => (string) $kampagne->betreff,
                 'ausgabe' => (string) $kampagne->titel,
             ],
+            $kampagne->vorlage(),
         );
 
         return response($fertig['html'])
@@ -352,6 +359,7 @@ class NewsletterController extends Controller
             'absender_name' => ['nullable', 'string', 'max:120'],
             'antwort_an' => ['nullable', 'email', 'max:191'],
             'mail_konto_id' => ['nullable', 'integer', Rule::in(Zusteller::konten()->pluck('id')->all())],
+            'vorlage_id' => ['nullable', 'integer', Rule::exists('newsletter_vorlagen', 'id')],
             'modus' => ['required', Rule::in([Kampagne::MODUS_BAUSTEINE, Kampagne::MODUS_CODE])],
             'mit_rahmen' => ['nullable', 'boolean'],
             'zielgruppen' => ['array'],
@@ -367,6 +375,7 @@ class NewsletterController extends Controller
             'absender_name' => trim((string) $request->input('absender_name')) ?: null,
             'antwort_an' => trim((string) $request->input('antwort_an')) ?: null,
             'mail_konto_id' => $request->filled('mail_konto_id') ? (int) $request->input('mail_konto_id') : null,
+            'vorlage_id' => $request->filled('vorlage_id') ? (int) $request->input('vorlage_id') : null,
             'modus' => $request->input('modus'),
             // Nur im Code-Modus abwählbar; der Baukasten braucht den Rahmen immer.
             'mit_rahmen' => $request->input('modus') === Kampagne::MODUS_CODE
@@ -403,6 +412,7 @@ class NewsletterController extends Controller
             $html,
             $text,
             $werte,
+            $request->filled('vorlage_id') ? Vorlage::find((int) $request->input('vorlage_id')) : null,
         );
     }
 

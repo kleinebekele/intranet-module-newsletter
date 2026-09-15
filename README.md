@@ -119,6 +119,25 @@ Beides ist im Backend bearbeitbar, hat Live-Vorschau, Testmail und „Standard w
 älteren Core meldet das Modul seine Vorlagen nicht an und der Versand fällt auf den
 allgemeinen Rahmen zurück.
 
+### Eigene Mailvorlagen der Redaktion
+
+Wer das Modul bedient, soll keinen Zugang zum Adminbereich brauchen. Deshalb gibt es im
+Modul den Menüpunkt **Mailvorlagen** (Tabelle `newsletter_vorlagen`): eigene Rahmen mit
+denselben Platzhaltern wie `_rahmen_newsletter` (`{{ inhalt }}`, `{{ titel }}`, `{{ logo }}`,
+`{{ jahr }}`), mit Quelltext, Textfassung und Live-Vorschau. Eine neue Vorlage startet mit dem
+Rahmen, wie er gerade in der Verwaltung gilt.
+
+- Jede Ausgabe wählt im Editor ihre Vorlage. **Keine gewählt = Rahmen aus der Verwaltung.**
+- Eine Vorlage kann *Standard für neue Ausgaben* sein (höchstens eine); die erste angelegte
+  wird es automatisch.
+- Anrede und Abbinder (`newsletter`) kommen weiterhin aus der Verwaltung.
+- Wird eine Vorlage gelöscht, fallen die betroffenen Ausgaben auf den Rahmen der Verwaltung
+  zurück (Spalte `vorlage_id` ohne Fremdschlüssel).
+
+Technisch meldet `Zusteller::imEigenenRahmen()` die gewählte Vorlage für den jeweiligen
+Render-Aufruf als Rahmen `_rahmen_newsletter_eigen` im Core-Register an und biegt die Vorlage
+`newsletter` darauf um – der Core selbst bleibt unverändert.
+
 ## Absender je Ausgabe
 
 Jede Ausgabe kann einen eigenen **Absendernamen** und eine **Antwort-an-Adresse** tragen

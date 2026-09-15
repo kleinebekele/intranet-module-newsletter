@@ -67,6 +67,13 @@ class NewsletterVersenden extends Command
             $this->warn("Ausgabe „{$kampagne->titel}\": SMTP-Absender #{$kampagne->mail_konto_id} fehlt oder ist abgeschaltet – Versand über den Standard-Absender.");
         }
 
+        // Eigene Vorlage (Menüpunkt „Mailvorlagen") ebenfalls einmal je Lauf.
+        // Ist sie inzwischen gelöscht, gilt der Rahmen aus der Verwaltung.
+        $vorlage = $kampagne->vorlage();
+        if ($kampagne->vorlage_id && $vorlage === null) {
+            $this->warn("Ausgabe „{$kampagne->titel}\": Mailvorlage #{$kampagne->vorlage_id} fehlt – Versand im Rahmen aus der Verwaltung.");
+        }
+
         $offen = $kampagne->empfaenger()
             ->wartend()
             ->with('user')
@@ -75,7 +82,7 @@ class NewsletterVersenden extends Command
             ->get();
 
         foreach ($offen as $empfaenger) {
-            $this->einliefern($kampagne, $empfaenger, $mailer, $html, $text, $konto);
+            $this->einliefern($kampagne, $empfaenger, $mailer, $html, $text, $konto, $vorlage);
         }
 
         // Fertig? Erst prüfen, nachdem dieser Lauf gearbeitet hat.
@@ -98,6 +105,7 @@ class NewsletterVersenden extends Command
         string $html,
         string $text,
         ?object $konto = null,
+        ?object $vorlage = null,
     ): void {
         // Zwischen Freigabe und Versand können Stunden liegen. In der Zeit kann
         // jemand gesperrt worden sein oder eine neue Adresse bekommen haben –
@@ -137,6 +145,7 @@ class NewsletterVersenden extends Command
                 $kampagne->absender_name,
                 $kampagne->antwort_an,
                 $konto,
+                $vorlage,
             );
 
             // Die tatsächlich genutzte Adresse festhalten (kann von der beim

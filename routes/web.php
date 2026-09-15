@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Intranet\Modules\Newsletter\Http\Controllers\NewsletterController;
+use Intranet\Modules\Newsletter\Http\Controllers\VorlageController;
 
 /*
  | Routen des Newsletter-Moduls.
@@ -29,6 +30,21 @@ Route::middleware(['web', 'auth'])
         Route::post('/vorschau', [NewsletterController::class, 'vorschau'])->name('vorschau');
         Route::post('/testmail', [NewsletterController::class, 'testmail'])->name('testmail');
         Route::post('/bild', [NewsletterController::class, 'bild'])->name('bild');
+
+        // Eigene Mailvorlagen (Rahmen) der Redaktion – Menüpunkt „Mailvorlagen".
+        // Ebenfalls vor {kampagne}, damit „vorlagen" keine Ausgaben-ID wird.
+        // Der Namenspräfix `vorlagen.` hängt alle Unterseiten an den Menüpunkt
+        // `vorlagen.index` (Zugriffsprüfung des Core läuft über den Routennamen).
+        Route::prefix('vorlagen')->name('vorlagen.')->group(function () {
+            Route::get('/', [VorlageController::class, 'index'])->name('index');
+            Route::get('/anlegen', [VorlageController::class, 'create'])->name('create');
+            Route::post('/', [VorlageController::class, 'store'])->name('store');
+            Route::post('/vorschau', [VorlageController::class, 'vorschau'])->name('vorschau');
+            Route::get('/{vorlage}/bearbeiten', [VorlageController::class, 'edit'])->name('edit');
+            Route::put('/{vorlage}', [VorlageController::class, 'update'])->name('update');
+            Route::delete('/{vorlage}', [VorlageController::class, 'destroy'])->name('destroy');
+            Route::post('/{vorlage}/standard', [VorlageController::class, 'standard'])->name('standard');
+        });
 
         Route::get('/{kampagne}', [NewsletterController::class, 'show'])->name('show');
         Route::get('/{kampagne}/vorschau', [NewsletterController::class, 'mailVorschau'])->name('mail-vorschau');

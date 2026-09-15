@@ -35,7 +35,7 @@ class Kampagne extends Model
 
     protected $table = 'newsletter_kampagnen';
 
-    protected $fillable = ['titel', 'betreff', 'absender_name', 'antwort_an', 'mail_konto_id', 'modus', 'mit_rahmen', 'bausteine', 'html', 'text', 'zielgruppen', 'erstellt_von'];
+    protected $fillable = ['titel', 'betreff', 'absender_name', 'antwort_an', 'mail_konto_id', 'modus', 'mit_rahmen', 'vorlage_id', 'bausteine', 'html', 'text', 'zielgruppen', 'erstellt_von'];
 
     /**
      * Ein frisch erstelltes Objekt ist sofort ein Entwurf – nicht erst, nachdem
@@ -81,6 +81,17 @@ class Kampagne extends Model
         $konto = \App\Models\MailKonto::find($this->mail_konto_id);
 
         return ($konto && $konto->aktiv) ? $konto : null;
+    }
+
+    /**
+     * Die gewählte eigene Vorlage (Menüpunkt „Mailvorlagen") – oder null für
+     * den Rahmen aus Verwaltung → Mailvorlagen. Null auch, wenn die Vorlage
+     * inzwischen gelöscht wurde: Dann geht die Ausgabe im Standardrahmen raus,
+     * statt liegen zu bleiben.
+     */
+    public function vorlage(): ?Vorlage
+    {
+        return $this->vorlage_id ? Vorlage::find($this->vorlage_id) : null;
     }
 
     public function istEntwurf(): bool

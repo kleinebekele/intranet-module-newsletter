@@ -27,6 +27,12 @@ class Zusteller
     public const QUELLE = 'Newsletter';
 
     /**
+     * Registerschlüssel, unter dem eine eigene Vorlage des Moduls für einen
+     * Render-Aufruf als Rahmen angemeldet wird (siehe {@see imEigenenRahmen()}).
+     */
+    public const EIGENER_RAHMEN = '_rahmen_newsletter_eigen';
+
+    /**
      * Für die Vorschau: die fertige Mail rendern, ohne sie zu verschicken.
      *
      * @param  array<string, string>  $werte
@@ -39,15 +45,19 @@ class Zusteller
         string $html,
         string $text,
         array $werte,
+        ?object $vorlage = null,
     ): array {
         $werte = self::werteMitBetreff($betreff, $werte);
 
         if ($mitRahmen) {
-            return $mailer->rendern(
-                NewsletterServiceProvider::VORLAGE,
-                $werte + ['inhalt' => Platzhalter::ersetzen($html, $werte)],
-                ['inhalt' => Platzhalter::ersetzen($text, $werte)],
-            );
+            $htmlWerte = $werte + ['inhalt' => Platzhalter::ersetzen($html, $werte)];
+            $textWerte = ['inhalt' => Platzhalter::ersetzen($text, $werte)];
+
+            if ($vorlage !== null) {
+                return self::imEigenenRahmen($mailer, $vorlage, $htmlWerte, $textWerte);
+            }
+
+            return $mailer->rendern(NewsletterServiceProvider::VORLAGE, $htmlWerte, $textWerte);
         }
 
         // Ohne Rahmen: das eingegebene HTML ist die ganze Mail.
@@ -55,6 +65,77 @@ class Zusteller
             'betreff' => $werte['betreff'],
             'html' => Platzhalter::ersetzen($html, $werte),
             'text' => Platzhalter::ersetzen($text, $werte),
+        ];
+    }
+
+    /**
+     * Die Ausgabe in einer EIGENEN Vorlage des Moduls (Menüpunkt „Mailvorlagen")
+     * rendern statt im Rahmen aus der Verwaltung.
+     *
+     * Der Core kennt Rahmen nur über sein Register. Deshalb wird die gewählte
+     * Vorlage für diesen Aufruf als Rahmen dort angemeldet und die Vorlage
+     * `newsletter` (Anrede, Abbinder – weiterhin aus der Verwaltung) auf ihn
+     * umgebogen. Eine gespeicherte Fassung von `newsletter` bleibt wirksam.
+     *
+     * @param  object  $vorlage  Braucht `html` und `text` (Modell {@see \Intranet\Modules\Newsletter\Models\Vorlage}
+     *                           oder eine ungespeicherte Attrappe für die Vorschau).
+     * @param  array<string, string>  $htmlWerte
+     * @param  array<string, string>  $textWerte
+     * @return array{betreff: string, html: string, text: string}
+     */
+    private static function imEigenenRahmen(VorlagenMailer $mailer, object $vorlage, array $htmlWerte, array $textWerte): array
+    {
+        $register = app(\App\Mail\Vorlagen\VorlagenRegister::class);
+        $basis = $register->finden(NewsletterServiceProvider::VORLAGE);
+
+        if ($basis === null) {
+            // Älterer Core ohne Newsletter-Vorlage – dann gibt es auch keinen
+            // Rahmen, in den sich etwas legen ließe.
+            return $mailer->rendern(NewsletterServiceProvider::VORLAGE, $htmlWerte, $textWerte);
+        }
+
+        // Ohne eigene Textfassung gilt die des Rahmens aus der Verwaltung –
+        // eine leere Textspur wäre für Mailprogramme ohne HTML ein Rückschritt.
+        $text = trim((string) ($vorlage->text ?? ''));
+
+        $register->registrieren(new \App\Mail\Vorlagen\VorlagenDefinition(
+            schluessel: self::EIGENER_RAHMEN,
+            titel: 'Rahmen: eigene Newsletter-Vorlage',
+            beschreibung: 'Zur Laufzeit aus dem Newsletter-Modul angemeldet.',
+            platzhalter: [],
+            betreff: null,
+            html: (string) $vorlage->html,
+            text: $text !== '' ? $text : self::standardRahmen()['text'],
+            rahmen: null,
+            modul: self::QUELLE,
+        ));
+
+        $definition = clone $basis;
+        $definition->rahmen = self::EIGENER_RAHMEN;
+
+        return $mailer->rendernMit(
+            \App\Models\MailVorlage::find(NewsletterServiceProvider::VORLAGE),
+            $definition,
+            $htmlWerte,
+            $textWerte,
+        );
+    }
+
+    /**
+     * Der Newsletter-Rahmen aus Verwaltung → Mailvorlagen, so wie er gerade
+     * gilt (angepasste Fassung, sonst Standard). Vorbelegung für eine neue
+     * eigene Vorlage und Textspur-Rückfall.
+     *
+     * @return array{html: string, text: string}
+     */
+    public static function standardRahmen(): array
+    {
+        $definition = app(\App\Mail\Vorlagen\VorlagenRegister::class)->finden(NewsletterServiceProvider::RAHMEN);
+        $gespeichert = \App\Models\MailVorlage::find(NewsletterServiceProvider::RAHMEN);
+
+        return [
+            'html' => (string) ($gespeichert->html ?? $definition?->html ?? ''),
+            'text' => (string) ($gespeichert->text ?? $definition?->text ?? ''),
         ];
     }
 
@@ -97,11 +178,12 @@ class Zusteller
         ?string $absenderName = null,
         ?string $antwortAn = null,
         ?object $konto = null,
+        ?object $vorlage = null,
     ): void {
         // Beide Fassungen (mit und ohne Rahmen) laufen über dieselbe Stelle:
         // erst fertig rendern, dann EINE Mail bauen – so bekommen beide denselben
         // Absender, Antwort-an, Auslöser und die Referenz fürs Maillog.
-        $fertig = self::rendern($mailer, $mitRahmen, $betreff, $html, $text, $werte);
+        $fertig = self::rendern($mailer, $mitRahmen, $betreff, $html, $text, $werte, $vorlage);
 
         Mail::html($fertig['html'], function ($nachricht) use ($an, $fertig, $referenz, $absenderName, $antwortAn, $konto) {
             $nachricht->to($an)->subject($fertig['betreff'])->text($fertig['text']);

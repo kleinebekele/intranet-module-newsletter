@@ -78,6 +78,29 @@
                         </div>
                     </div>
 
+                    {{-- Rahmen je Ausgabe: eine eigene Vorlage der Redaktion (Menüpunkt
+                         „Mailvorlagen") oder der Rahmen aus Verwaltung → Mailvorlagen. --}}
+                    <div class="mt-4 border-t border-gray-100 pt-4">
+                        <label for="vorlage_id" class="block text-sm font-medium text-gray-700">
+                            Mailvorlage <span class="font-normal text-gray-400">(Rahmen um die Ausgabe)</span>
+                        </label>
+                        <select id="vorlage_id" name="vorlage_id" x-model="vorlageId" @change="nachVorschau"
+                                class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500 sm:max-w-md">
+                            <option value="">Rahmen aus der Verwaltung</option>
+                            @foreach ($vorlagen as $vorlage)
+                                <option value="{{ $vorlage->id }}">{{ $vorlage->name }}</option>
+                            @endforeach
+                        </select>
+                        <p class="mt-1 text-xs text-gray-500">
+                            @if ($vorlagen->isEmpty())
+                                Eigene Rahmen legst du unter <a href="{{ route('module.newsletter.vorlagen.index') }}" class="text-indigo-600 hover:underline">Mailvorlagen</a> an. Bis dahin gilt der Rahmen aus Verwaltung → Mailvorlagen.
+                            @else
+                                Kopf, Fuß und Farben rund um den Inhalt. Pflege unter <a href="{{ route('module.newsletter.vorlagen.index') }}" class="text-indigo-600 hover:underline">Mailvorlagen</a>.
+                            @endif
+                        </p>
+                        @error('vorlage_id') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+
                     {{-- Absender je Ausgabe: wahlweise ein SMTP-Absender aus der Verwaltung
                          (eigenes Postfach, eigene Adresse) oder der Standard der Instanz.
                          Name und Antwort-an sind immer editierbar; der Wechsel im Dropdown
@@ -452,6 +475,7 @@
                 absenderName: @js(old('absender_name', $kampagne->absender_name ?? '')),
                 antwortAn: @js(old('antwort_an', $kampagne->antwort_an ?? '')),
                 kontoId: @js((string) old('mail_konto_id', $kampagne->mail_konto_id ?? '')),
+                vorlageId: @js((string) old('vorlage_id', $kampagne->vorlage_id ?? '')),
 
                 // Oberfläche
                 codeReiter: 'html',
@@ -640,6 +664,7 @@
                         absender_name: this.absenderName,
                         antwort_an: this.antwortAn,
                         mail_konto_id: this.kontoId,
+                        vorlage_id: this.vorlageId,
                         modus: this.modus,
                         mit_rahmen: this.mitRahmen,
                         bausteine: JSON.stringify(this.bausteine),
