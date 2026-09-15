@@ -18,6 +18,11 @@
         </div>
     </x-slot>
 
+    {{-- konten: Vorgaben je SMTP-Absender (Dropdown) – beim Wechsel werden Name und
+         Antwort-an damit ersetzt; „Standard" setzt die Werte der Instanz.
+         Innerhalb des x-data-Attributs keine Kommentare mit Anführungszeichen:
+         ein gerades " beendet das Attribut, und Alpine bindet dann titel/betreff
+         an die globalen Input-Elemente ("[object HTMLInputElement]"). --}}
     <div x-data="newsletterEditor({
             bausteine: @js($kampagne->bausteine ?? []),
             modus: @js(old('modus', $kampagne->modus ?? 'bausteine')),
@@ -32,8 +37,6 @@
             },
             csrf: @js(csrf_token()),
             eigeneMail: @js(auth()->user()->email),
-            // Vorgaben je SMTP-Absender (Dropdown) – beim Wechsel werden Name und
-            // Antwort-an damit ersetzt; „Standard" setzt die Werte der Instanz.
             konten: @js($konten->map(fn ($k) => ['id' => (string) $k->id, 'name' => (string) ($k->absender_name ?? ''), 'antwort' => (string) ($k->antwort_an ?? '')])->values()),
             standardName: @js((string) config('mail.from.name')),
          })">
