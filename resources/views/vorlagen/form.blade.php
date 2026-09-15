@@ -52,11 +52,11 @@
                 </section>
 
                 <section class="rounded-xl border border-gray-200 bg-gray-50 p-5">
-                    <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Platzhalter (Klick zum Kopieren)</div>
+                    <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Platzhalter (Klick fügt an der Cursorposition ein)</div>
                     <div class="flex flex-wrap gap-2">
                         @foreach ($platzhalter as $name => $erklaerung)
                             @php($marke = '{'.'{ '.$name.' }'.'}')
-                            <button type="button" @click="kopieren(@js($marke))" title="{{ $erklaerung }}"
+                            <button type="button" @click="einfuegen(@js($marke))" title="{{ $erklaerung }}"
                                     class="rounded-lg border border-gray-300 bg-white px-2 py-1 font-mono text-xs text-gray-700 hover:border-indigo-400 hover:text-indigo-700">
                                 {{ $marke }}
                             </button>
@@ -94,7 +94,7 @@
                         Tabellenbasiertes HTML mit Inline-Styles sieht in Outlook, Gmail &amp; Co. verlässlich gleich aus.
                     </span>
                 </p>
-                <textarea name="html" x-model="html" @input="nachVorschau" spellcheck="false" required
+                <textarea name="html" x-ref="feldHtml" x-model="html" @input="nachVorschau" spellcheck="false" required
                           class="block h-[32rem] w-full rounded-lg border-gray-300 font-mono text-xs"></textarea>
                 @error('html') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
             </div>
@@ -105,7 +105,7 @@
                     Geht als zweite Spur mit und wird angezeigt, wenn ein Mailprogramm kein HTML darstellt.
                     Leer = die Textfassung des mitgelieferten Newsletter-Rahmens.
                 </p>
-                <textarea name="text" x-model="text" @input="nachVorschau" spellcheck="false"
+                <textarea name="text" x-ref="feldText" x-model="text" @input="nachVorschau" spellcheck="false"
                           class="block h-[32rem] w-full rounded-lg border-gray-300 font-mono text-xs"></textarea>
             </div>
 
@@ -142,14 +142,42 @@
                 // Elementbezug EINMAL merken: $refs ist in setTimeout-/await-
                 // Callbacks nicht verfügbar (siehe Core-Editor).
                 _vorschau: null,
+                _feldHtml: null,
+                _feldText: null,
 
                 init() {
                     this._vorschau = this.$refs.vorschau;
+                    this._feldHtml = this.$refs.feldHtml;
+                    this._feldText = this.$refs.feldText;
                     this.nachVorschau();
                 },
 
-                kopieren(text) {
-                    navigator.clipboard?.writeText(text);
+                // Platzhalter an der Cursorposition des gerade offenen Feldes
+                // einfügen (HTML-Quelltext oder Reiner Text). Im Vorschau-Reiter
+                // gibt es kein Feld – dann in die Zwischenablage.
+                einfuegen(marke) {
+                    const feld = this.reiter === 'html' ? this._feldHtml
+                               : this.reiter === 'text' ? this._feldText
+                               : null;
+
+                    if (! feld) {
+                        navigator.clipboard?.writeText(marke);
+                        return;
+                    }
+
+                    const von = feld.selectionStart ?? feld.value.length;
+                    const bis = feld.selectionEnd ?? von;
+                    const neu = feld.value.slice(0, von) + marke + feld.value.slice(bis);
+
+                    if (this.reiter === 'html') this.html = neu; else this.text = neu;
+
+                    // Cursor hinter den eingefügten Platzhalter setzen – nach dem
+                    // Rendern, sonst überschreibt Alpine die Auswahl wieder.
+                    this.$nextTick(() => {
+                        feld.focus();
+                        feld.setSelectionRange(von + marke.length, von + marke.length);
+                    });
+                    this.nachVorschau();
                 },
 
                 nachVorschau() {
