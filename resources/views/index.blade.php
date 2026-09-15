@@ -41,7 +41,7 @@
                         </td>
                         <td class="px-4 py-3 text-gray-600">{{ $kampagne->betreff }}</td>
                         <td class="px-4 py-3">
-                            @include('newsletter::partials.status', ['status' => $kampagne->status])
+                            @include('newsletter::partials.status', ['status' => $kampagne->status, 'versandAb' => $kampagne->versand_ab])
                         </td>
                         <td class="px-4 py-3 text-gray-600">
                             @if ($kampagne->istEntwurf())

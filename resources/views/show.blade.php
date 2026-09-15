@@ -3,7 +3,7 @@
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <h1 class="text-xl font-semibold text-gray-800">{{ $kampagne->titel }}</h1>
-                @include('newsletter::partials.status', ['status' => $kampagne->status])
+                @include('newsletter::partials.status', ['status' => $kampagne->status, 'versandAb' => $kampagne->versand_ab])
             </div>
             <a href="{{ route('module.newsletter.index') }}"
                class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
@@ -116,12 +116,23 @@
                     </p>
 
                     <form method="POST" action="{{ route('module.newsletter.freigeben', $kampagne) }}"
-                          class="mt-3"
-                          onsubmit="return confirm('Diese Ausgabe jetzt an {{ $uebersicht['erreichbar'] ?? 0 }} Empfänger freigeben? Das lässt sich nicht zurücknehmen.');">
+                          class="mt-3" x-data="{ ab: '' }"
+                          onsubmit="return confirm('Diese Ausgabe an {{ $uebersicht['erreichbar'] ?? 0 }} Empfänger freigeben? Das lässt sich nicht zurücknehmen.');">
                         @csrf
+                        {{-- Optionaler Termin: leer = sofort. Wird als datetime-local
+                             (Ortszeit) geschickt und serverseitig geparst. --}}
+                        <label for="versand_ab" class="block text-xs font-medium text-gray-600">
+                            Versand frühestens ab <span class="font-normal text-gray-400">(leer = sofort)</span>
+                        </label>
+                        <input id="versand_ab" name="versand_ab" type="datetime-local" x-model="ab"
+                               min="{{ now()->format('Y-m-d\TH:i') }}"
+                               class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        @error('versand_ab') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+
                         <button type="submit"
                                 @disabled(($uebersicht['erreichbar'] ?? 0) === 0 || ! $kampagne->hatInhalt())
-                                class="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40">
+                                class="mt-3 w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                x-text="ab ? 'Freigeben – Versand ab ' + ab.replace('T', ' ') + ' Uhr' : 'Jetzt freigeben und verschicken'">
                             Jetzt freigeben und verschicken
                         </button>
                     </form>
@@ -185,6 +196,9 @@
                     @if ($kampagne->freigegeben_am)
                         <p class="mt-2 text-xs text-gray-400">
                             Freigegeben am {{ $kampagne->freigegeben_am->format('d.m.Y H:i') }}
+                            @if ($kampagne->versand_ab)
+                                · Versand ab {{ $kampagne->versand_ab->format('d.m.Y H:i') }}
+                            @endif
                         </p>
                     @endif
                 </section>

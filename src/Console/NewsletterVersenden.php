@@ -35,6 +35,8 @@ class NewsletterVersenden extends Command
 
         $kampagnen = Kampagne::query()
             ->where('status', Kampagne::VERSAND)
+            // Ein gesetzter Versandtermin hält die Ausgabe zurück, bis er erreicht ist.
+            ->where(fn ($q) => $q->whereNull('versand_ab')->orWhere('versand_ab', '<=', now()))
             ->orderBy('id') // Ältere Ausgabe zuerst fertig machen
             ->get();
 

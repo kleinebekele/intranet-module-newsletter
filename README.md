@@ -93,6 +93,10 @@ Der Command `newsletter:versenden` läuft minütlich und liefert höchstens `--a
 200) Empfänger je Lauf ein. Das schützt den einzelnen Lauf vor dem Zeitlimit; das Tempo nach
 außen bestimmt weiterhin der Ausgangskorb.
 
+**Versandtermin:** Bei der Freigabe lässt sich ein frühester Versandzeitpunkt angeben
+(`versand_ab`, leer = sofort). Die Empfängerliste steht ab der Freigabe fest; der Command lässt
+die Ausgabe liegen, bis der Termin erreicht ist (Status „Geplant ab …").
+
 ## Zielgruppen
 
 Auswählbar sind **alle Rollen, die es in dieser Instanz gibt** – das Modul bringt keine

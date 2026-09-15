@@ -288,10 +288,26 @@ class NewsletterController extends Controller
             return back()->with('error', 'Die Ausgabe hat noch keinen Inhalt.');
         }
 
-        $anzahl = $kampagne->freigeben($request->user());
+        // Optionaler frühester Versandzeitpunkt (datetime-local aus dem Formular).
+        $request->validate(['versand_ab' => ['nullable', 'date']]);
+        $versandAb = $request->filled('versand_ab')
+            ? \Illuminate\Support\Carbon::parse($request->input('versand_ab'))
+            : null;
+
+        $anzahl = $kampagne->freigeben($request->user(), $versandAb);
 
         if ($anzahl === 0) {
             return back()->with('error', 'Kein erreichbarer Empfänger – bitte die Zielgruppen prüfen.');
+        }
+
+        $kampagne->refresh();
+
+        if ($kampagne->wartetAufTermin()) {
+            return redirect()->route('module.newsletter.show', $kampagne)->with(
+                'status',
+                "Freigegeben: {$anzahl} Empfänger sind vorgemerkt. Der Versand startet am "
+                .$kampagne->versand_ab->format('d.m.Y \u\m H:i').' Uhr.',
+            );
         }
 
         return redirect()->route('module.newsletter.show', $kampagne)->with(

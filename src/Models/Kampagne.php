@@ -54,8 +54,17 @@ class Kampagne extends Model
         'bausteine' => 'array',
         'zielgruppen' => 'array',
         'freigegeben_am' => 'datetime',
+        'versand_ab' => 'datetime',
         'versand_beendet_am' => 'datetime',
     ];
+
+    /** Freigegeben, aber der gewünschte Versandzeitpunkt liegt noch in der Zukunft? */
+    public function wartetAufTermin(): bool
+    {
+        return $this->status === self::VERSAND
+            && $this->versand_ab !== null
+            && $this->versand_ab->isFuture();
+    }
 
     public function empfaenger(): HasMany
     {
@@ -164,7 +173,7 @@ class Kampagne extends Model
      *
      * @return int Anzahl vorgemerkter Empfänger (0 = nichts passiert)
      */
-    public function freigeben(User $von): int
+    public function freigeben(User $von, ?\Illuminate\Support\Carbon $versandAb = null): int
     {
         if (! $this->istEntwurf()) {
             return 0;
@@ -195,6 +204,8 @@ class Kampagne extends Model
             'status' => self::VERSAND,
             'freigegeben_am' => $jetzt,
             'freigegeben_von' => $von->id,
+            // Termin in der Vergangenheit = sofort; dann gar nicht erst merken.
+            'versand_ab' => ($versandAb !== null && $versandAb->isFuture()) ? $versandAb : null,
         ])->save();
 
         return count($zeilen);
