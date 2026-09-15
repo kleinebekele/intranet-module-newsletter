@@ -115,23 +115,23 @@ class Kampagne extends Model
     }
 
     /**
-     * Wird der Inhalt in den Newsletter-Rahmen (Kopf, Fuß, Anrede) gelegt?
+     * Wird der Inhalt in einen Rahmen (Kopf, Fuß, Anrede) gelegt?
      *
-     * Der Baukasten liefert immer Fragmente und braucht den Rahmen zwingend.
-     * Nur im Code-Modus darf man ihn abwählen und die ganze Mail selbst
-     * schreiben.
+     * `false` = Rahmen-Wahl „keine – nur eigener Code": Die Bausteine (in der
+     * Regel ein einziger HTML-Baustein) SIND die ganze Mail.
      */
     public function mitRahmen(): bool
     {
-        return ! $this->imCodeModus() || (bool) $this->mit_rahmen;
+        return (bool) $this->mit_rahmen;
     }
 
     /**
      * Der Inhalt der Ausgabe als Mail-HTML.
      *
-     * Im Code-Modus das selbst geschriebene HTML, sonst die gerenderten
-     * Bausteine. Beide Fassungen bleiben in der Zeile stehen – `modus`
-     * entscheidet nur, welche gilt.
+     * Seit v1.9 immer aus den Bausteinen (eigener Code ist ein Baustein). Der
+     * Code-Modus alter Ausgaben wird per Migration in einen HTML-Baustein
+     * überführt; der Zweig hier bleibt als Rückfall, falls das einmal
+     * ausbleibt.
      */
     public function alsHtml(): string
     {

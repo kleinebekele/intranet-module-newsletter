@@ -48,10 +48,9 @@ class NewsletterController extends Controller
             'kampagne' => new Kampagne([
                 'bausteine' => [],
                 'zielgruppen' => [],
-                'modus' => Kampagne::MODUS_BAUSTEINE,
                 'mit_rahmen' => true,
                 // Die Standardvorlage der Redaktion vorbelegen – oder null für
-                // den Rahmen aus der Verwaltung.
+                // den allgemeinen Rahmen des Intranets.
                 'vorlage_id' => Vorlage::standard()?->id,
             ]),
             'rollen' => Empfaengerkreis::rollen(),
@@ -279,13 +278,7 @@ class NewsletterController extends Controller
      */
     public function vorschau(Request $request): JsonResponse
     {
-        // Zusätzlich zur fertigen Mail der ROHE Inhalt: Den braucht der Knopf
-        // „Aus Baukasten übernehmen" als Startpunkt für den Code-Modus. Die
-        // gerahmte Fassung wäre dafür unbrauchbar – sie enthält das ganze
-        // Dokument samt Kopf und Fuß.
-        return response()->json(
-            $this->rendernAusRequest($request) + $this->inhaltAusRequest($request),
-        );
+        return response()->json($this->rendernAusRequest($request));
     }
 
     /**
@@ -342,12 +335,15 @@ class NewsletterController extends Controller
         return response()->json(['url' => $url]);
     }
 
+    /** Wert des Rahmen-Dropdowns für „keine – nur eigener Code". */
+    public const RAHMEN_KEINER = 'keine';
+
     /**
      * Die geprüften Formulardaten einer Ausgabe.
      *
-     * Beide Fassungen werden gespeichert – die Bausteine UND der eigene Code.
-     * `modus` entscheidet, welche gilt. Wer zwischen den Reitern wechselt, soll
-     * seine Arbeit nicht verlieren.
+     * Der Rahmen kommt als EIN Feld `rahmen`: leer = allgemeiner Rahmen des
+     * Intranets, `keine` = ohne Rahmen (die Bausteine sind die ganze Mail),
+     * Zahl = eigene Vorlage aus dem Menüpunkt „Mailvorlagen".
      *
      * @return array<string, mixed>
      */
@@ -359,14 +355,17 @@ class NewsletterController extends Controller
             'absender_name' => ['nullable', 'string', 'max:120'],
             'antwort_an' => ['nullable', 'email', 'max:191'],
             'mail_konto_id' => ['nullable', 'integer', Rule::in(Zusteller::konten()->pluck('id')->all())],
-            'vorlage_id' => ['nullable', 'integer', Rule::exists('newsletter_vorlagen', 'id')],
-            'modus' => ['required', Rule::in([Kampagne::MODUS_BAUSTEINE, Kampagne::MODUS_CODE])],
-            'mit_rahmen' => ['nullable', 'boolean'],
+            'rahmen' => ['nullable', 'string', function (string $attribut, mixed $wert, \Closure $fehler): void {
+                if ($wert === '' || $wert === self::RAHMEN_KEINER) {
+                    return;
+                }
+                if (! ctype_digit((string) $wert) || ! Vorlage::whereKey((int) $wert)->exists()) {
+                    $fehler('Diese Mailvorlage gibt es nicht (mehr).');
+                }
+            }],
             'zielgruppen' => ['array'],
             'zielgruppen.*' => ['string'],
             'bausteine' => ['nullable', 'string'],
-            'html' => ['nullable', 'string'],
-            'text' => ['nullable', 'string'],
         ]);
 
         return [
@@ -375,23 +374,17 @@ class NewsletterController extends Controller
             'absender_name' => trim((string) $request->input('absender_name')) ?: null,
             'antwort_an' => trim((string) $request->input('antwort_an')) ?: null,
             'mail_konto_id' => $request->filled('mail_konto_id') ? (int) $request->input('mail_konto_id') : null,
-            'vorlage_id' => $request->filled('vorlage_id') ? (int) $request->input('vorlage_id') : null,
-            'modus' => $request->input('modus'),
-            // Nur im Code-Modus abwählbar; der Baukasten braucht den Rahmen immer.
-            'mit_rahmen' => $request->input('modus') === Kampagne::MODUS_CODE
-                ? $request->boolean('mit_rahmen')
-                : true,
+            'vorlage_id' => $this->vorlageIdAusRequest($request),
+            'mit_rahmen' => $this->mitRahmenAusRequest($request),
+            'modus' => Kampagne::MODUS_BAUSTEINE,
             'zielgruppen' => $this->zielgruppen($request),
             'bausteine' => $this->bausteine($request),
-            'html' => $request->input('html'),
-            'text' => $request->input('text'),
         ];
     }
 
     /**
      * Vorschau und Testmail rendern beide dasselbe: das, was GERADE im
-     * Formular steht – auch ungespeichert, und je nach Reiter aus Bausteinen
-     * oder aus eigenem Code.
+     * Formular steht – auch ungespeichert.
      *
      * @return array{betreff: string, html: string, text: string}
      */
@@ -403,50 +396,32 @@ class NewsletterController extends Controller
             'ausgabe' => (string) $request->input('titel'),
         ];
 
-        ['inhalt_html' => $html, 'inhalt_text' => $text] = $this->inhaltAusRequest($request);
+        $bausteine = $this->bausteine($request);
+        $vorlageId = $this->vorlageIdAusRequest($request);
 
         return Zusteller::rendern(
             $this->mailer,
             $this->mitRahmenAusRequest($request),
             (string) $request->input('betreff'),
-            $html,
-            $text,
+            Bausteine::alsHtml($bausteine),
+            Bausteine::alsText($bausteine),
             $werte,
-            $request->filled('vorlage_id') ? Vorlage::find((int) $request->input('vorlage_id')) : null,
+            $vorlageId ? Vorlage::find($vorlageId) : null,
         );
     }
 
-    /**
-     * Nutzt die im Formular gerade eingestellte Fassung den Rahmen? Der
-     * Baukasten immer, der Code-Modus nur, wenn der Schalter an ist.
-     */
+    /** Rahmen-Dropdown: alles außer „keine" bekommt einen Rahmen. */
     private function mitRahmenAusRequest(Request $request): bool
     {
-        return $request->input('modus') !== Kampagne::MODUS_CODE
-            || $request->boolean('mit_rahmen');
+        return (string) $request->input('rahmen', '') !== self::RAHMEN_KEINER;
     }
 
-    /**
-     * Der Inhalt der Ausgabe – ohne Rahmen und ohne Anrede, so wie er in der
-     * Spalte `html`/`bausteine` steht.
-     *
-     * @return array{inhalt_html: string, inhalt_text: string}
-     */
-    private function inhaltAusRequest(Request $request): array
+    /** Rahmen-Dropdown: nur eine Zahl ist eine eigene Vorlage. */
+    private function vorlageIdAusRequest(Request $request): ?int
     {
-        if ($request->input('modus') === Kampagne::MODUS_CODE) {
-            return [
-                'inhalt_html' => (string) $request->input('html'),
-                'inhalt_text' => (string) $request->input('text'),
-            ];
-        }
+        $wert = (string) $request->input('rahmen', '');
 
-        $bausteine = $this->bausteine($request);
-
-        return [
-            'inhalt_html' => Bausteine::alsHtml($bausteine),
-            'inhalt_text' => Bausteine::alsText($bausteine),
-        ];
+        return ctype_digit($wert) ? (int) $wert : null;
     }
 
     /**

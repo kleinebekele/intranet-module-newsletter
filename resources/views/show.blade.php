@@ -26,12 +26,12 @@
             <div class="flex items-center justify-between">
                 <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Vorschau</h2>
                 <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
-                    @if (! $kampagne->imCodeModus())
-                        Baukasten
-                    @elseif ($kampagne->mitRahmen())
-                        Eigener Code (in Vorlage)
+                    @if (! $kampagne->mitRahmen())
+                        Ohne Rahmen – nur eigener Code
+                    @elseif ($vorlage = $kampagne->vorlage())
+                        Vorlage: {{ $vorlage->name }}
                     @else
-                        Eigener Code (komplett eigen)
+                        Allgemeiner Rahmen des Intranets
                     @endif
                 </span>
             </div>

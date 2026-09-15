@@ -7,27 +7,25 @@ Eine Ausgabe wird an eine oder mehrere **Rollen** adressiert und erst nach ausdr
 **Freigabe** verschickt. Der Versand läuft über den Ausgangskorb des Core und ist damit
 automatisch gedrosselt.
 
-## Zwei Wege, eine Ausgabe zu schreiben
+## Der Baukasten
 
-Umschaltbar über Reiter; **beide Fassungen bleiben gespeichert**, `modus` entscheidet nur,
-welche gilt. Wer hin- und herwechselt, verliert seine Arbeit nicht.
+Eine Ausgabe besteht aus Bausteinen: Überschrift, Textabsatz, Bild, Knopf, Trennlinie – und
+**HTML-Code**. Eingetippter Text wird immer maskiert; das Layout ist nicht zerschießbar. Nur der
+Baustein *HTML-Code* übernimmt sein Feld roh (für fertige Kampagnen-Templates, Sonderlayouts);
+seine Textspur entsteht per `strip_tags`.
 
-- **Baukasten** – Überschrift, Textabsatz, Bild, Knopf, Trennlinie. Eingetippter Text wird
-  immer maskiert; das Layout ist nicht zerschießbar. Für alle, die kein HTML schreiben.
-- **Eigener Code** – aufgebaut wie der Editor unter *Mailvorlagen*: *Formatierte Fassung*
-  (WYSIWYG mit Umschalter auf Quelltext) · *Reiner Text* · *Vorschau* mit Testmail.
-  Der Knopf **„Aus Baukasten übernehmen"** erzeugt aus den Bausteinen einen Startpunkt,
-  den man dann von Hand feinschleift.
+Der frühere Reiter „Eigener Code" ist seit v1.9 weg – alte Ausgaben im Code-Modus wurden per
+Migration in einen HTML-Baustein überführt.
 
-Im Code-Modus ist außerdem wählbar, **wie** der Code verschickt wird:
+**Rahmen je Ausgabe** (Dropdown *Mailvorlage* im Kopf):
 
-- **In die Vorlage einsetzen** (Standard) – das HTML kommt als Inhalt in den Newsletter-Rahmen,
-  mit Kopf, Logo, Anrede und Fuß. Wie beim Baukasten, nur der Inhalt ist selbst geschrieben.
-- **Komplett eigener Code** – das HTML *ist* die ganze Mail. Kein Rahmen, keine Anrede; der
-  Verfasser liefert alles selbst (inkl. `<html>` und Abbinder). Für fertige Kampagnen-Templates
-  aus einem anderen Werkzeug.
+- **Allgemeiner Rahmen des Intranets** – derselbe wie bei Systemmails.
+- **Eine eigene Vorlage** aus dem Menüpunkt *Mailvorlagen* (siehe unten).
+- **Keine – nur eigener Code** – die Bausteine *sind* die ganze Mail. Kein Rahmen, keine Anrede;
+  der Verfasser liefert alles selbst (inkl. `<html>` und Abbinder).
 
-Beim Baukasten ist der Rahmen immer an – dort sind die Bausteine Fragmente.
+Die Platzhalter-Knöpfe stehen direkt bei den Bausteinen; ein Klick fügt den Platzhalter ins
+zuletzt benutzte Feld (Betreff, Text- oder HTML-Baustein) an der Cursorposition ein.
 
 ## Platzhalter
 

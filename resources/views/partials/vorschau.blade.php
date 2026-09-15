@@ -1,6 +1,5 @@
-{{-- Vorschau + Testmail. Läuft im Alpine-Kontext von form.blade.php und wird
-     von BEIDEN Modi benutzt: im Baukasten unter den Bausteinen, im Code-Modus
-     als dritter Reiter (wie in der Vorlagenverwaltung). --}}
+{{-- Vorschau + Testmail. Läuft im Alpine-Kontext von form.blade.php, unter
+     den Bausteinen. --}}
 <div class="rounded-xl border border-gray-200 bg-white p-2">
     <div class="mb-2 border-b border-gray-100 px-2 py-1 text-sm text-gray-500">
         Betreff: <span class="font-medium text-gray-700" x-text="vorschauBetreff || '—'"></span>

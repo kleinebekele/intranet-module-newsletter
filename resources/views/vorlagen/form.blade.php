@@ -51,22 +51,13 @@
                     </label>
                 </section>
 
-                <section class="rounded-xl border border-gray-200 bg-gray-50 p-5">
-                    <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Platzhalter (Klick fügt an der Cursorposition ein)</div>
-                    <div class="flex flex-wrap gap-2">
-                        @foreach ($platzhalter as $name => $erklaerung)
-                            @php($marke = '{'.'{ '.$name.' }'.'}')
-                            <button type="button" @click="einfuegen(@js($marke))" title="{{ $erklaerung }}"
-                                    class="rounded-lg border border-gray-300 bg-white px-2 py-1 font-mono text-xs text-gray-700 hover:border-indigo-400 hover:text-indigo-700">
-                                {{ $marke }}
-                            </button>
-                        @endforeach
-                    </div>
-                    <p class="mt-3 text-xs text-gray-500">
-                        <code>{{ '{'.'{ inhalt }'.'}' }}</code> muss vorkommen – dort landet die Ausgabe samt Anrede.
-                    </p>
+                <section class="rounded-xl border border-gray-200 bg-gray-50 p-5 text-sm text-gray-600">
+                    Der Rahmen ist Kopf, Fuß und Farben rund um jede Ausgabe. Die Anrede kommt aus der
+                    Verwaltung (Mailvorlage „Newsletter-Ausgabe"), der Text je Ausgabe aus dem Baukasten –
+                    beides landet an der Stelle <code>{{ '{'.'{ inhalt }'.'}' }}</code>.
                 </section>
             </div>
+
 
             {{-- Reiter --}}
             <div class="border-b border-gray-200">
@@ -94,6 +85,18 @@
                         Tabellenbasiertes HTML mit Inline-Styles sieht in Outlook, Gmail &amp; Co. verlässlich gleich aus.
                     </span>
                 </p>
+                {{-- Platzhalter direkt über dem Feld, in das sie eingefügt werden. --}}
+                <div class="mb-2 flex flex-wrap items-center gap-2">
+                    <span class="text-xs font-semibold uppercase tracking-wide text-gray-500">Platzhalter</span>
+                    @foreach ($platzhalter as $name => $erklaerung)
+                        @php($marke = '{'.'{ '.$name.' }'.'}')
+                        <button type="button" @click="einfuegen(@js($marke))" title="{{ $erklaerung }}"
+                                class="rounded-lg border border-gray-300 bg-white px-2 py-1 font-mono text-xs text-gray-700 hover:border-indigo-400 hover:text-indigo-700">
+                            {{ $marke }}
+                        </button>
+                    @endforeach
+                    <span class="text-xs text-gray-400">Klick fügt an der Cursorposition ein. <code>{{ '{'.'{ inhalt }'.'}' }}</code> muss vorkommen.</span>
+                </div>
                 <textarea name="html" x-ref="feldHtml" x-model="html" @input="nachVorschau" spellcheck="false" required
                           class="block h-[32rem] w-full rounded-lg border-gray-300 font-mono text-xs"></textarea>
                 @error('html') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
@@ -105,6 +108,17 @@
                     Geht als zweite Spur mit und wird angezeigt, wenn ein Mailprogramm kein HTML darstellt.
                     Leer = die Textfassung des mitgelieferten Newsletter-Rahmens.
                 </p>
+                <div class="mb-2 flex flex-wrap items-center gap-2">
+                    <span class="text-xs font-semibold uppercase tracking-wide text-gray-500">Platzhalter</span>
+                    @foreach ($platzhalter as $name => $erklaerung)
+                        @if ($name === 'logo') @continue @endif
+                        @php($marke = '{'.'{ '.$name.' }'.'}')
+                        <button type="button" @click="einfuegen(@js($marke))" title="{{ $erklaerung }}"
+                                class="rounded-lg border border-gray-300 bg-white px-2 py-1 font-mono text-xs text-gray-700 hover:border-indigo-400 hover:text-indigo-700">
+                            {{ $marke }}
+                        </button>
+                    @endforeach
+                </div>
                 <textarea name="text" x-ref="feldText" x-model="text" @input="nachVorschau" spellcheck="false"
                           class="block h-[32rem] w-full rounded-lg border-gray-300 font-mono text-xs"></textarea>
             </div>

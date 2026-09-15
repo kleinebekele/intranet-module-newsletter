@@ -13,8 +13,11 @@ namespace Intranet\Modules\Newsletter\Support;
  * inline-style-basiertes Mail-HTML baut – genauso wie es der Core für seine
  * eigenen Vorlagen von Hand tut.
  *
- * Eingetippter Text wird IMMER maskiert. Es gibt keinen Weg, über das Formular
- * eigenes Markup in die Mail zu bekommen.
+ * Eingetippter Text wird IMMER maskiert – mit einer bewussten Ausnahme: Der
+ * Baustein „HTML-Code" übernimmt sein Feld roh. Er ersetzt den früheren
+ * Reiter „Eigener Code" und ist für die, die wissen, was sie tun (fertige
+ * Kampagnen-Templates, Sonderlayouts). Zusammen mit der Rahmen-Wahl „keine"
+ * an der Ausgabe kann er die komplette Mail sein.
  */
 class Bausteine
 {
@@ -25,6 +28,7 @@ class Bausteine
         'bild' => 'Bild',
         'knopf' => 'Knopf',
         'trenner' => 'Trennlinie',
+        'html' => 'HTML-Code',
     ];
 
     /**
@@ -74,6 +78,11 @@ class Bausteine
                     'url' => self::text($baustein['url'] ?? ''),
                 ],
                 'trenner' => ['typ' => 'trenner'],
+                // Roh, nicht maskiert – siehe Klassenkommentar.
+                'html' => [
+                    'typ' => 'html',
+                    'html' => is_scalar($baustein['html'] ?? null) ? trim((string) $baustein['html']) : '',
+                ],
             };
 
             if (self::istLeer($fertig)) {
@@ -111,6 +120,7 @@ class Bausteine
                     e($b['text']),
                 ),
                 'trenner' => '<hr style="border:0;border-top:1px solid #e5e7eb;margin:24px 0;">',
+                'html' => (string) ($b['html'] ?? ''),
                 default => '',
             };
         }
@@ -137,6 +147,13 @@ class Bausteine
                 'bild' => ($b['alt'] ?? '') !== '' ? '[Bild: '.$b['alt'].']' : '',
                 'knopf' => trim(($b['text'] ?? '').': '.($b['url'] ?? ''), ': '),
                 'trenner' => '—',
+                // Aus dem rohen HTML eine lesbare Textspur: Tags weg, Entities
+                // auflösen, Leerraum zusammenziehen.
+                'html' => trim(preg_replace('/[ \t]*\R\s*/', "\n", html_entity_decode(
+                    strip_tags(preg_replace('~<(br|/p|/div|/tr|/h[1-6]|/li)[^>]*>~i', "\n", (string) ($b['html'] ?? ''))),
+                    ENT_QUOTES | ENT_HTML5,
+                    'UTF-8',
+                )) ?? ''),
                 default => '',
             };
         }
@@ -215,6 +232,7 @@ class Bausteine
             'bild' => $b['url'] === '',
             // Ein Knopf ohne Ziel ist eine Enttäuschung, kein Knopf.
             'knopf' => $b['text'] === '' || $b['url'] === '',
+            'html' => $b['html'] === '',
             default => false,
         };
     }
