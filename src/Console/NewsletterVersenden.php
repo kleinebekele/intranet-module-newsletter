@@ -68,10 +68,10 @@ class NewsletterVersenden extends Command
         }
 
         // Eigene Vorlage (Menüpunkt „Mailvorlagen") ebenfalls einmal je Lauf.
-        // Ist sie inzwischen gelöscht, gilt der Rahmen aus der Verwaltung.
+        // Ist sie inzwischen gelöscht, gilt der allgemeine Rahmen des Intranets.
         $vorlage = $kampagne->vorlage();
         if ($kampagne->vorlage_id && $vorlage === null) {
-            $this->warn("Ausgabe „{$kampagne->titel}\": Mailvorlage #{$kampagne->vorlage_id} fehlt – Versand im Rahmen aus der Verwaltung.");
+            $this->warn("Ausgabe „{$kampagne->titel}\": Mailvorlage #{$kampagne->vorlage_id} fehlt – Versand im allgemeinen Rahmen.");
         }
 
         $offen = $kampagne->empfaenger()

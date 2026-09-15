@@ -8,8 +8,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * Ein eigener Rahmen des Newsletter-Moduls (Menüpunkt „Mailvorlagen").
  *
- * Gleiche Rolle wie `_rahmen_newsletter` unter Verwaltung → Mailvorlagen, nur
- * von der Redaktion selbst gepflegt: Kopf, Fuß, Farben rund um jede Ausgabe.
+ * Der Rahmen um eine Ausgabe – Kopf, Fuß, Farben –, von der Redaktion selbst
+ * gepflegt (bis v1.7 lag er als `_rahmen_newsletter` in der Verwaltung). Ohne
+ * gewählte Vorlage gilt der allgemeine Rahmen des Intranets.
  * Die Platzhalter sind dieselben (`{{ inhalt }}`, `{{ titel }}`, `{{ logo }}`,
  * `{{ jahr }}`). Der Text der Ausgabe kommt weiterhin über die Vorlage
  * `newsletter` (Anrede, Abbinder) hinein.

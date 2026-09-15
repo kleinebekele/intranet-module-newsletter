@@ -70,7 +70,7 @@ class Zusteller
 
     /**
      * Die Ausgabe in einer EIGENEN Vorlage des Moduls (Menüpunkt „Mailvorlagen")
-     * rendern statt im Rahmen aus der Verwaltung.
+     * rendern statt im allgemeinen Rahmen des Intranets.
      *
      * Der Core kennt Rahmen nur über sein Register. Deshalb wird die gewählte
      * Vorlage für diesen Aufruf als Rahmen dort angemeldet und die Vorlage
@@ -94,7 +94,7 @@ class Zusteller
             return $mailer->rendern(NewsletterServiceProvider::VORLAGE, $htmlWerte, $textWerte);
         }
 
-        // Ohne eigene Textfassung gilt die des Rahmens aus der Verwaltung –
+        // Ohne eigene Textfassung gilt die des mitgelieferten Rahmens –
         // eine leere Textspur wäre für Mailprogramme ohne HTML ein Rückschritt.
         $text = trim((string) ($vorlage->text ?? ''));
 
@@ -122,20 +122,16 @@ class Zusteller
     }
 
     /**
-     * Der Newsletter-Rahmen aus Verwaltung → Mailvorlagen, so wie er gerade
-     * gilt (angepasste Fassung, sonst Standard). Vorbelegung für eine neue
-     * eigene Vorlage und Textspur-Rückfall.
+     * Der mitgelieferte Newsletter-Rahmen des Moduls: Startpunkt für eine neue
+     * eigene Vorlage und Rückfall für eine fehlende Textspur.
      *
      * @return array{html: string, text: string}
      */
     public static function standardRahmen(): array
     {
-        $definition = app(\App\Mail\Vorlagen\VorlagenRegister::class)->finden(NewsletterServiceProvider::RAHMEN);
-        $gespeichert = \App\Models\MailVorlage::find(NewsletterServiceProvider::RAHMEN);
-
         return [
-            'html' => (string) ($gespeichert->html ?? $definition?->html ?? ''),
-            'text' => (string) ($gespeichert->text ?? $definition?->text ?? ''),
+            'html' => NewsletterServiceProvider::RAHMEN_HTML,
+            'text' => NewsletterServiceProvider::RAHMEN_TEXT,
         ];
     }
 

@@ -103,7 +103,7 @@
                 <label class="mb-1 block text-sm font-medium text-gray-700">Reiner Text (ohne Formatierung)</label>
                 <p class="mb-2 text-xs text-gray-500">
                     Geht als zweite Spur mit und wird angezeigt, wenn ein Mailprogramm kein HTML darstellt.
-                    Leer = die Textfassung des Rahmens aus der Verwaltung.
+                    Leer = die Textfassung des mitgelieferten Newsletter-Rahmens.
                 </p>
                 <textarea name="text" x-model="text" @input="nachVorschau" spellcheck="false"
                           class="block h-[32rem] w-full rounded-lg border-gray-300 font-mono text-xs"></textarea>

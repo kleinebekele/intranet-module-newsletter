@@ -11,14 +11,19 @@ use Intranet\Modules\Newsletter\Console\NewsletterVersenden;
  * Anmelde-Klasse des Newsletter-Moduls.
  *
  * Zwei Dinge passieren hier über das Übliche hinaus:
- *  1. Das Modul meldet einen EIGENEN Mail-Rahmen an (`_rahmen_newsletter`) und
- *     die Vorlage `newsletter`, die darin liegt. Beide sind danach ganz normal
- *     unter Verwaltung → Mailvorlagen bearbeitbar.
+ *  1. Das Modul meldet die Vorlage `newsletter` (Anrede, Abbinder) im Core an;
+ *     sie ist unter Verwaltung → Mailvorlagen bearbeitbar. Die RAHMEN dagegen
+ *     pflegt die Redaktion im Modul selbst (Menüpunkt „Mailvorlagen"); ohne
+ *     gewählte Vorlage gilt der allgemeine Rahmen des Intranets.
  *  2. Der Versand-Command wird beim Scheduler angemeldet.
  */
 class NewsletterServiceProvider extends ModuleServiceProvider
 {
-    /** Schlüssel des Newsletter-Rahmens (ein zweiter Rahmen neben dem des Core). */
+    /**
+     * Schlüssel, unter dem der Newsletter-Rahmen bis v1.7 in der Verwaltung
+     * lag. Nur noch für die Übernahme einer dort angepassten Fassung ins Modul
+     * (Migration 2026_09_15_120000).
+     */
     public const RAHMEN = '_rahmen_newsletter';
 
     /** Schlüssel der Vorlage, die jede Ausgabe umschließt. */
@@ -37,8 +42,8 @@ class NewsletterServiceProvider extends ModuleServiceProvider
     {
         parent::boot();
 
-        // Läuft in Web UND Konsole: im Web für die Bearbeitung unter
-        // Verwaltung → Mailvorlagen, in der Konsole für den Versand.
+        // Läuft in Web UND Konsole: im Web für Vorschau und Bearbeitung,
+        // in der Konsole für den Versand.
         $this->vorlagenAnmelden();
 
         if (! $this->app->runningInConsole()) {
@@ -74,27 +79,12 @@ class NewsletterServiceProvider extends ModuleServiceProvider
         $this->app->booted(function (): void {
             $register = $this->app->make(\App\Mail\Vorlagen\VorlagenRegister::class);
 
-            $register->registrieren(new \App\Mail\Vorlagen\VorlagenDefinition(
-                schluessel: self::RAHMEN,
-                titel: 'Rahmen: Newsletter',
-                beschreibung: 'Kopf und Fuß rund um jede Newsletter-Ausgabe. Darf anders aussehen '
-                    .'als der allgemeine Rahmen – ein Rundbrief ist keine Systemmail.',
-                platzhalter: [
-                    'inhalt' => 'Die Ausgabe selbst (nicht selbst eintippen)',
-                    'titel' => 'Haupttitel aus den Einstellungen',
-                    'logo' => 'Logo aus den Einstellungen (leer, wenn keins hinterlegt ist)',
-                    'jahr' => 'Aktuelles Jahr',
-                ],
-                betreff: null,
-                html: self::RAHMEN_HTML,
-                text: self::RAHMEN_TEXT,
-                rahmen: null, // ist selbst ein Rahmen
-                beispiele: [
-                    'inhalt' => '<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">'
-                        .'Hier stehen die Bausteine der jeweiligen Ausgabe.</p>',
-                ],
-            ));
-
+            // Der Newsletter-Rahmen wird seit v1.8 NICHT mehr hier angemeldet:
+            // Er lebt als Mailvorlage im Modul (Menüpunkt „Mailvorlagen"), damit
+            // die Redaktion ihn ohne Adminzugang pflegen kann. Die Vorlage
+            // `newsletter` (Anrede, Abbinder) bleibt in der Verwaltung; ihre
+            // Vorschau dort liegt im allgemeinen Rahmen – beim Versand ersetzt
+            // der Zusteller den Rahmen durch die gewählte Modul-Vorlage.
             $register->registrieren(new \App\Mail\Vorlagen\VorlagenDefinition(
                 schluessel: self::VORLAGE,
                 titel: 'Newsletter-Ausgabe',
@@ -112,7 +102,9 @@ class NewsletterServiceProvider extends ModuleServiceProvider
                 betreff: '{{ betreff }}',
                 html: self::AUSGABE_HTML,
                 text: self::AUSGABE_TEXT,
-                rahmen: self::RAHMEN,
+                // Allgemeiner Rahmen des Intranets. Eine Modul-Vorlage ersetzt ihn
+                // beim Versand (Zusteller::imEigenenRahmen).
+                rahmen: \App\Mail\Vorlagen\VorlagenDefinition::RAHMEN,
                 beispiele: [
                     'betreff' => 'Neues aus der Schule',
                     'ausgabe' => 'Elternbrief Juli',
@@ -132,7 +124,7 @@ class NewsletterServiceProvider extends ModuleServiceProvider
     // farbigen Streifen unter dem Kopf: Ein Rundbrief darf sich von einer
     // Passwort-Mail unterscheiden.
 
-    private const RAHMEN_HTML = <<<'HTML'
+    public const RAHMEN_HTML = <<<'HTML'
 <!DOCTYPE html>
 <html lang="de">
 <body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
@@ -164,7 +156,7 @@ class NewsletterServiceProvider extends ModuleServiceProvider
 </html>
 HTML;
 
-    private const RAHMEN_TEXT = <<<'TEXT'
+    public const RAHMEN_TEXT = <<<'TEXT'
 {{ titel }}
 ========================================
 

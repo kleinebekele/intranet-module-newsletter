@@ -85,9 +85,9 @@ class Kampagne extends Model
 
     /**
      * Die gewählte eigene Vorlage (Menüpunkt „Mailvorlagen") – oder null für
-     * den Rahmen aus Verwaltung → Mailvorlagen. Null auch, wenn die Vorlage
-     * inzwischen gelöscht wurde: Dann geht die Ausgabe im Standardrahmen raus,
-     * statt liegen zu bleiben.
+     * den allgemeinen Rahmen des Intranets. Null auch, wenn die Vorlage
+     * inzwischen gelöscht wurde: Dann geht die Ausgabe im allgemeinen Rahmen
+     * raus, statt liegen zu bleiben.
      */
     public function vorlage(): ?Vorlage
     {

@@ -17,7 +17,7 @@ use Intranet\Modules\Newsletter\Support\Zusteller;
  *
  * Wer das Modul bedienen darf, darf hier Rahmen anlegen, ohne Zugang zum
  * Adminbereich. Ist keine Vorlage angelegt oder an einer Ausgabe keine gewählt,
- * gilt weiterhin der Rahmen aus Verwaltung → Mailvorlagen.
+ * gilt der allgemeine Rahmen des Intranets (Verwaltung → Mailvorlagen → Rahmen).
  */
 class VorlageController extends Controller
 {
@@ -44,8 +44,8 @@ class VorlageController extends Controller
 
     public function create(): View
     {
-        // Startpunkt ist der Rahmen, wie er gerade in der Verwaltung gilt –
-        // so muss niemand bei einem leeren Feld anfangen.
+        // Startpunkt ist der mitgelieferte Newsletter-Rahmen – so muss niemand
+        // bei einem leeren Feld anfangen.
         $rahmen = Zusteller::standardRahmen();
 
         return view('newsletter::vorlagen.form', [
@@ -58,7 +58,9 @@ class VorlageController extends Controller
     {
         $vorlage = Vorlage::create($this->daten($request));
 
-        if ($request->boolean('ist_standard') || Vorlage::count() === 1) {
+        // Kein stiller Standard: Ohne ausdrückliche Markierung starten neue
+        // Ausgaben im allgemeinen Rahmen des Intranets.
+        if ($request->boolean('ist_standard')) {
             $vorlage->alsStandardSetzen();
         }
 
@@ -80,6 +82,9 @@ class VorlageController extends Controller
 
         if ($request->boolean('ist_standard')) {
             $vorlage->alsStandardSetzen();
+        } elseif ($vorlage->ist_standard) {
+            // Haken entfernt: neue Ausgaben starten wieder im allgemeinen Rahmen.
+            $vorlage->forceFill(['ist_standard' => false])->save();
         }
 
         return redirect()->route('module.newsletter.vorlagen.index')
@@ -99,13 +104,13 @@ class VorlageController extends Controller
     {
         $name = $vorlage->name;
 
-        // Ausgaben, die darauf zeigten, fallen auf den Rahmen der Verwaltung
+        // Ausgaben, die darauf zeigten, fallen auf den allgemeinen Rahmen
         // zurück – ausdrücklich, nicht erst still beim Versand.
         Kampagne::where('vorlage_id', $vorlage->id)->update(['vorlage_id' => null]);
         $vorlage->delete();
 
         return redirect()->route('module.newsletter.vorlagen.index')
-            ->with('status', "Mailvorlage „{$name}\" gelöscht. Betroffene Ausgaben nutzen wieder den Rahmen aus der Verwaltung.");
+            ->with('status', "Mailvorlage „{$name}\" gelöscht. Betroffene Ausgaben nutzen wieder den allgemeinen Rahmen des Intranets.");
     }
 
     /**

@@ -79,21 +79,21 @@
                     </div>
 
                     {{-- Rahmen je Ausgabe: eine eigene Vorlage der Redaktion (Menüpunkt
-                         „Mailvorlagen") oder der Rahmen aus Verwaltung → Mailvorlagen. --}}
+                         „Mailvorlagen") oder der allgemeine Rahmen des Intranets. --}}
                     <div class="mt-4 border-t border-gray-100 pt-4">
                         <label for="vorlage_id" class="block text-sm font-medium text-gray-700">
                             Mailvorlage <span class="font-normal text-gray-400">(Rahmen um die Ausgabe)</span>
                         </label>
                         <select id="vorlage_id" name="vorlage_id" x-model="vorlageId" @change="nachVorschau"
                                 class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500 sm:max-w-md">
-                            <option value="">Rahmen aus der Verwaltung</option>
+                            <option value="">Allgemeiner Rahmen des Intranets</option>
                             @foreach ($vorlagen as $vorlage)
                                 <option value="{{ $vorlage->id }}">{{ $vorlage->name }}</option>
                             @endforeach
                         </select>
                         <p class="mt-1 text-xs text-gray-500">
                             @if ($vorlagen->isEmpty())
-                                Eigene Rahmen legst du unter <a href="{{ route('module.newsletter.vorlagen.index') }}" class="text-indigo-600 hover:underline">Mailvorlagen</a> an. Bis dahin gilt der Rahmen aus Verwaltung → Mailvorlagen.
+                                Eigene Rahmen legst du unter <a href="{{ route('module.newsletter.vorlagen.index') }}" class="text-indigo-600 hover:underline">Mailvorlagen</a> an. Bis dahin gilt der allgemeine Rahmen des Intranets.
                             @else
                                 Kopf, Fuß und Farben rund um den Inhalt. Pflege unter <a href="{{ route('module.newsletter.vorlagen.index') }}" class="text-indigo-600 hover:underline">Mailvorlagen</a>.
                             @endif

@@ -106,37 +106,40 @@ Die Aufschlüsselung („erreicht 412 von 917") steht schon im Formular, **bevor
 
 ## Vorlagen
 
-Das Modul meldet zwei Einträge unter *Verwaltung → Mailvorlagen* an:
+Unter *Verwaltung → Mailvorlagen* meldet das Modul **einen** Eintrag an:
 
 | Schlüssel | Was es ist |
 |---|---|
-| `_rahmen_newsletter` | Eigener Rahmen: Kopf, Logo, farbiger Streifen, Fußzeile. Getrennt vom Rahmen der Systemmails, weil ein Rundbrief anders aussehen darf. |
 | `newsletter` | Was um **jede** Ausgabe steht: Anrede, Abbinder. Der Betreff wird über `{{ betreff }}` durchgereicht – wer will, macht daraus `[Schule] {{ betreff }}`. |
 
-Beides ist im Backend bearbeitbar, hat Live-Vorschau, Testmail und „Standard wiederherstellen".
+Der **Rahmen** (Kopf, Logo, Fußzeile) liegt seit v1.8 nicht mehr in der Verwaltung, sondern
+im Modul selbst – siehe unten. Ohne gewählte Vorlage gilt der allgemeine Rahmen des Intranets
+(`_rahmen`, derselbe wie bei Systemmails).
 
-⚠️ Der eigene Rahmen braucht **Core ≥ `VorlagenDefinition` mit `$rahmen`-Feld**. Mit einem
-älteren Core meldet das Modul seine Vorlagen nicht an und der Versand fällt auf den
-allgemeinen Rahmen zurück.
-
-### Eigene Mailvorlagen der Redaktion
+### Mailvorlagen der Redaktion
 
 Wer das Modul bedient, soll keinen Zugang zum Adminbereich brauchen. Deshalb gibt es im
-Modul den Menüpunkt **Mailvorlagen** (Tabelle `newsletter_vorlagen`): eigene Rahmen mit
-denselben Platzhaltern wie `_rahmen_newsletter` (`{{ inhalt }}`, `{{ titel }}`, `{{ logo }}`,
-`{{ jahr }}`), mit Quelltext, Textfassung und Live-Vorschau. Eine neue Vorlage startet mit dem
-Rahmen, wie er gerade in der Verwaltung gilt.
+Modul den Menüpunkt **Mailvorlagen** (Tabelle `newsletter_vorlagen`): eigene Rahmen mit den
+Platzhaltern `{{ inhalt }}`, `{{ titel }}`, `{{ logo }}`, `{{ jahr }}`, mit Quelltext,
+Textfassung und Live-Vorschau (mit Beispiel-Ausgabe darin). Eine neue Vorlage startet mit dem
+mitgelieferten Newsletter-Rahmen (640 px, farbiger Streifen).
 
-- Jede Ausgabe wählt im Editor ihre Vorlage. **Keine gewählt = Rahmen aus der Verwaltung.**
-- Eine Vorlage kann *Standard für neue Ausgaben* sein (höchstens eine); die erste angelegte
-  wird es automatisch.
+- Jede Ausgabe wählt im Editor ihre Vorlage. **Keine gewählt = allgemeiner Rahmen des Intranets.**
+- Eine Vorlage kann *Standard für neue Ausgaben* sein (höchstens eine). Ohne Markierung
+  starten neue Ausgaben im allgemeinen Rahmen.
 - Anrede und Abbinder (`newsletter`) kommen weiterhin aus der Verwaltung.
-- Wird eine Vorlage gelöscht, fallen die betroffenen Ausgaben auf den Rahmen der Verwaltung
+- Wird eine Vorlage gelöscht, fallen die betroffenen Ausgaben auf den allgemeinen Rahmen
   zurück (Spalte `vorlage_id` ohne Fremdschlüssel).
+
+**Umzug aus der Verwaltung (Migration `2026_09_15_120000`):** War `_rahmen_newsletter` dort
+angepasst, wird diese Fassung als Vorlage „Newsletter-Rahmen (aus der Verwaltung)" ins Modul
+übernommen – nicht als Standard. Die alte Zeile in `mail_vorlagen` bleibt stehen, wird aber
+nicht mehr angezeigt.
 
 Technisch meldet `Zusteller::imEigenenRahmen()` die gewählte Vorlage für den jeweiligen
 Render-Aufruf als Rahmen `_rahmen_newsletter_eigen` im Core-Register an und biegt die Vorlage
-`newsletter` darauf um – der Core selbst bleibt unverändert.
+`newsletter` darauf um – der Core selbst bleibt unverändert. Das braucht **Core ≥
+`VorlagenDefinition` mit `$rahmen`-Feld**.
 
 ## Absender je Ausgabe
 

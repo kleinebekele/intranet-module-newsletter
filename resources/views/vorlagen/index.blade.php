@@ -18,8 +18,9 @@
 
     <p class="mb-4 text-sm text-gray-600">
         Eine Vorlage ist der <strong>Rahmen</strong> um jede Ausgabe: Kopf, Logo, Farben, Fußzeile.
-        Solange hier nichts angelegt ist oder eine Ausgabe keine Vorlage wählt, gilt der Rahmen aus
-        <em>Verwaltung → Mailvorlagen</em>. Anrede und Abbinder kommen weiterhin von dort.
+        Solange hier nichts angelegt ist oder eine Ausgabe keine Vorlage wählt, gilt der allgemeine
+        Rahmen des Intranets (derselbe wie bei Systemmails). Anrede und Abbinder kommen aus
+        <em>Verwaltung → Mailvorlagen</em>.
     </p>
 
     <div class="overflow-x-auto rounded-xl border border-gray-200 bg-white">
@@ -57,7 +58,7 @@
                             @endunless
                             <form method="POST" action="{{ route('module.newsletter.vorlagen.destroy', $vorlage) }}"
                                   class="ml-3 inline"
-                                  onsubmit="return confirm('Vorlage „{{ $vorlage->name }}“ löschen? Ausgaben, die sie nutzen, fallen auf den Rahmen aus der Verwaltung zurück.');">
+                                  onsubmit="return confirm('Vorlage „{{ $vorlage->name }}“ löschen? Ausgaben, die sie nutzen, fallen auf den allgemeinen Rahmen zurück.');">
                                 @csrf @method('DELETE')
                                 <button type="submit" class="text-sm text-gray-500 hover:text-red-600">Löschen</button>
                             </form>
@@ -66,7 +67,7 @@
                 @empty
                     <tr>
                         <td colspan="4" class="px-4 py-10 text-center text-gray-500">
-                            Noch keine eigene Vorlage. Bis dahin gilt für alle Ausgaben der Rahmen aus Verwaltung → Mailvorlagen.
+                            Noch keine eigene Vorlage. Bis dahin gilt für alle Ausgaben der allgemeine Rahmen des Intranets.
                         </td>
                     </tr>
                 @endforelse
