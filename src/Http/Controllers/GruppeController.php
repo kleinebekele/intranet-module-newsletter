@@ -50,7 +50,8 @@ class GruppeController extends Controller
     }
 
     /**
-     * Kontakt-Suche für das Modal: Name oder Mailadresse, höchstens zehn Treffer.
+     * Kontakt-Suche für das Modal: nur über den Namen, höchstens zehn Treffer.
+     * Mailadressen werden aus Datenschutzgründen weder durchsucht noch angezeigt.
      */
     public function benutzerSuche(Request $request): JsonResponse
     {
@@ -61,14 +62,13 @@ class GruppeController extends Controller
         }
 
         $treffer = User::query()
-            ->where(fn ($w) => $w->where('name', 'like', "%{$q}%")->orWhere('email', 'like', "%{$q}%"))
+            ->where('name', 'like', "%{$q}%")
             ->orderBy('name')
             ->limit(10)
-            ->get(['id', 'name', 'email', 'gesperrt_am'])
+            ->get(['id', 'name', 'gesperrt_am'])
             ->map(fn (User $u) => [
                 'id' => $u->id,
                 'name' => $u->name,
-                'email' => (string) $u->email,
                 'gesperrt' => $u->gesperrt_am !== null,
             ]);
 

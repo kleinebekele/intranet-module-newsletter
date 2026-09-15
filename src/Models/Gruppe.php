@@ -128,12 +128,13 @@ class Gruppe extends Model
     {
         $r = self::regelnBereinigen($this->regeln ?? []);
         $ids = array_merge($r['user_ein'], $r['user_aus']);
+        // Nur Namen – Mailadressen haben im Modal aus Datenschutzgründen nichts verloren.
         $namen = $ids === []
             ? collect()
-            : User::whereIn('id', $ids)->get(['id', 'name', 'email'])->keyBy('id');
+            : User::whereIn('id', $ids)->get(['id', 'name'])->keyBy('id');
 
         $kontakte = fn (array $liste) => array_values(array_map(
-            fn (int $id) => ['id' => $id, 'name' => (string) ($namen[$id]->name ?? "#{$id}"), 'email' => (string) ($namen[$id]->email ?? '')],
+            fn (int $id) => ['id' => $id, 'name' => (string) ($namen[$id]->name ?? "#{$id}")],
             $liste,
         ));
 
