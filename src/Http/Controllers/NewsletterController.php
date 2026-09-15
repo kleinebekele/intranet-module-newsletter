@@ -37,6 +37,8 @@ class NewsletterController extends Controller
                     'empfaenger',
                     'empfaenger as eingeliefert_count' => fn ($q) => $q->where('status', Empfaenger::EINGELIEFERT),
                 ])
+                // Wann ging die erste Mail raus? (Einlieferung in den Ausgangskorb)
+                ->withMin('empfaenger as erste_einlieferung', 'eingeliefert_am')
                 ->latest('id')
                 ->paginate(20),
         ]);

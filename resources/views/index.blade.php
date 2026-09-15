@@ -25,6 +25,7 @@
                     <th class="px-4 py-3 font-semibold">Status</th>
                     <th class="px-4 py-3 font-semibold">Empfänger</th>
                     <th class="px-4 py-3 font-semibold">Angelegt</th>
+                    <th class="px-4 py-3 font-semibold">Versendet</th>
                     <th class="px-4 py-3"></th>
                 </tr>
             </thead>
@@ -50,6 +51,13 @@
                             @endif
                         </td>
                         <td class="px-4 py-3 text-gray-500">{{ $kampagne->created_at?->format('d.m.Y') }}</td>
+                        <td class="px-4 py-3 text-gray-500 whitespace-nowrap" title="Zeitpunkt der ersten Mail">
+                            @if ($kampagne->erste_einlieferung)
+                                {{ \Illuminate\Support\Carbon::parse($kampagne->erste_einlieferung)->format('d.m.Y H:i') }}
+                            @else
+                                <span class="text-gray-400">–</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3 text-right whitespace-nowrap">
                             <a href="{{ route('module.newsletter.show', $kampagne) }}"
                                class="text-sm text-indigo-700 hover:underline">Vorschau</a>
@@ -67,7 +75,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-4 py-10 text-center text-gray-500">
+                        <td colspan="7" class="px-4 py-10 text-center text-gray-500">
                             Noch keine Ausgabe. Lege die erste an – verschickt wird erst nach ausdrücklicher Freigabe.
                         </td>
                     </tr>
