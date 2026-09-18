@@ -32,6 +32,11 @@ class NewsletterServiceProvider extends ModuleServiceProvider
     public function manifest(): ModuleManifest
     {
         return ModuleManifest::make('newsletter', 'Newsletter', icon: 'envelope')
+            // Rollen des Moduls: der Core legt sie beim modules:sync an bzw. übernimmt
+            // gleichnamige, von Hand angelegte samt Mitgliedern. Welche Unterseite
+            // welche Rolle sieht, stellt man unter Verwaltung → Module ein.
+            ->rolle('newsletter-admin', 'Newsletter: Admin')
+            ->rolle('newsletter-moderator', 'Newsletter: Moderator')
             ->item('index', 'Ausgaben', 'module.newsletter.index', icon: 'list')
             ->item('create', 'Neue Ausgabe', 'module.newsletter.create', icon: 'plus')
             // Eigene Rahmen der Redaktion – ohne Umweg über Verwaltung → Mailvorlagen.
