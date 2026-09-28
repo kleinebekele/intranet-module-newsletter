@@ -23,8 +23,15 @@ use Intranet\Modules\Newsletter\NewsletterServiceProvider;
  */
 class Zusteller
 {
-    /** Name, unter dem eine Newsletter-Mail im Maillog des Core auftaucht. */
+    /** Auslöser, unter dem eine Newsletter-Mail im Maillog des Core auftaucht. */
     public const QUELLE = 'Newsletter';
+
+    /**
+     * Modul, unter dem sie dort steht. Ohne diese Angabe hält der Core eine
+     * `Mail::html()`-Mail für „Core" – dann griffe auch der Absender je
+     * Modul+Auslöser unter dem falschen Modul.
+     */
+    public const MODUL = 'Newsletter';
 
     /**
      * Registerschlüssel, unter dem eine eigene Vorlage des Moduls für einen
@@ -184,7 +191,7 @@ class Zusteller
         Mail::html($fertig['html'], function ($nachricht) use ($an, $fertig, $referenz, $absenderName, $antwortAn, $konto) {
             $nachricht->to($an)->subject($fertig['betreff'])->text($fertig['text']);
             self::absenderSetzen($nachricht, $absenderName, $antwortAn, $konto);
-            VorlagenMailer::quelleMarkieren($nachricht, self::QUELLE, $referenz);
+            VorlagenMailer::quelleMarkieren($nachricht, self::QUELLE, $referenz, self::MODUL);
         });
     }
 

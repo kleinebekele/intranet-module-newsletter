@@ -362,7 +362,7 @@ class NewsletterController extends Controller
         Mail::html($fertig['html'], function ($nachricht) use ($daten, $fertig, $absenderName, $antwortAn, $konto) {
             $nachricht->to($daten['an'])->subject('[TEST] '.$fertig['betreff'])->text($fertig['text']);
             Zusteller::absenderSetzen($nachricht, $absenderName, $antwortAn, $konto);
-            VorlagenMailer::quelleMarkieren($nachricht, Zusteller::QUELLE);
+            VorlagenMailer::quelleMarkieren($nachricht, Zusteller::QUELLE, modul: Zusteller::MODUL);
         });
 
         return response()->json([

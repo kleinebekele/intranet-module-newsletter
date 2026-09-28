@@ -54,6 +54,14 @@ class NewsletterServiceProvider extends ModuleServiceProvider
         // in der Konsole für den Versand.
         $this->vorlagenAnmelden();
 
+        // Unter Verwaltung → Absender je Auslöser wählbar machen, auch bevor die
+        // erste Ausgabe rausging. Wächter wie oben für ältere Cores.
+        if (class_exists(\App\Support\Mailausloeser::class)) {
+            \App\Support\Mailausloeser::anbieten(fn () => [
+                ['modul' => Support\Zusteller::MODUL, 'ausloeser' => Support\Zusteller::QUELLE],
+            ]);
+        }
+
         if (! $this->app->runningInConsole()) {
             return;
         }
