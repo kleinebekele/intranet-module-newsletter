@@ -40,7 +40,10 @@ class NewsletterServiceProvider extends ModuleServiceProvider
             ->item('index', 'Ausgaben', 'module.newsletter.index', icon: 'list')
             ->item('create', 'Neue Ausgabe', 'module.newsletter.create', icon: 'plus')
             // Eigene Rahmen der Redaktion – ohne Umweg über Verwaltung → Mailvorlagen.
-            ->item('vorlagen', 'Mailvorlagen', 'module.newsletter.vorlagen.index', icon: 'layout');
+            ->item('vorlagen', 'Mailvorlagen', 'module.newsletter.vorlagen.index', icon: 'layout')
+            // Zugriffsstufen: diese POSTs rechnen bzw. rendern nur (MODULES.md im
+            // Core, „Zugriffsstufen").
+            ->lesend('reichweite', 'vorschau', 'vorlagen.vorschau');
     }
 
     public function boot(): void
