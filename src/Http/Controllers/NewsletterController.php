@@ -160,12 +160,6 @@ class NewsletterController extends Controller
 
     public function show(Kampagne $kampagne): View
     {
-        // Empfänger seitenweise, jede Zeile mit dem echten Zustellstatus aus dem
-        // Maillog des Core angereichert (an wen ging/geht die Ausgabe raus).
-        $empfaenger = $kampagne->istEntwurf()
-            ? null
-            : $this->empfaengerMitStatus($kampagne);
-
         return view('newsletter::show', [
             'zielgruppenNamen' => $this->zielgruppenNamen([$kampagne]),
             'kampagne' => $kampagne->load('ersteller'),
@@ -173,8 +167,39 @@ class NewsletterController extends Controller
             'uebersicht' => $kampagne->istEntwurf()
                 ? Empfaengerkreis::uebersicht($kampagne->zielgruppen ?? [])
                 : null,
-            'empfaenger' => $empfaenger,
-            'zustellung' => $kampagne->istEntwurf() ? null : self::zustellUebersicht($kampagne),
+        ]);
+    }
+
+    /**
+     * Alle Empfänger einer freigegebenen Ausgabe mit Zustellstatus – für das
+     * Modal in der Übersicht (Spalte „Empfänger"). Gefiltert wird im Browser.
+     */
+    public function empfaenger(Kampagne $kampagne): JsonResponse
+    {
+        if ($kampagne->istEntwurf()) {
+            return response()->json(['zeilen' => []]);
+        }
+
+        // Zu welcher gewählten Zielgruppe (Rolle) gehört jemand? Manuelle
+        // Gruppen und „alle" bleiben außen vor – die sind keine Eigenschaft
+        // der Person, sondern nur eine Auswahl.
+        $namen = $this->zielgruppenNamen([$kampagne]);
+        $rollen = array_values(array_filter(
+            $kampagne->zielgruppen ?? [],
+            fn ($z) => is_string($z) && $z !== Empfaengerkreis::ALLE && Gruppe::idAus($z) === null,
+        ));
+
+        return response()->json([
+            'zeilen' => $this->empfaengerMitStatus($kampagne)
+                ->map(fn (array $z) => [
+                    ...\Illuminate\Support\Arr::except($z, 'rollen'),
+                    'zeit' => $z['zeit']?->format('d.m.Y H:i'),
+                    'gruppen' => array_values(array_map(
+                        fn ($r) => $namen[$r] ?? $r,
+                        array_intersect($rollen, $z['rollen']),
+                    )),
+                ])
+                ->values(),
         ]);
     }
 
@@ -205,40 +230,40 @@ class NewsletterController extends Controller
     }
 
     /**
-     * Die Empfänger dieser Ausgabe (seitenweise), jeder mit seinem echten
-     * Zustellstatus aus dem Ausgangskorb des Core.
+     * Die Empfänger dieser Ausgabe, jeder mit seinem echten Zustellstatus aus
+     * dem Ausgangskorb des Core.
      *
-     * @return \Illuminate\Pagination\LengthAwarePaginator
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
      */
     private function empfaengerMitStatus(Kampagne $kampagne)
     {
-        $seite = $kampagne->empfaenger()
-            ->with('user:id,name')
+        $alle = $kampagne->empfaenger()
+            ->with('user:id,name', 'user.roles:role_id')
             ->orderBy('id')
-            ->paginate(50);
+            ->get();
 
-        // Für genau die Empfänger DIESER Seite die zugehörigen Maillog-Zeilen
-        // holen – über die Referenz, die der Versand mitgeschrieben hat. Nur die
-        // leichten Spalten (die serialisierte Nachricht bleibt außen vor).
+        // Die zugehörigen Maillog-Zeilen über die Referenz, die der Versand
+        // mitgeschrieben hat. Nur die leichten Spalten (die serialisierte
+        // Nachricht bleibt außen vor), in Paketen wegen der Platzhalter-Grenze.
         $zustellungen = collect();
 
-        if ($this->outboxKenntReferenz() && $seite->isNotEmpty()) {
-            $referenzen = $seite->getCollection()
-                ->map(fn (Empfaenger $e) => $kampagne->mailReferenz($e->id))
-                ->all();
-
+        if ($this->outboxKenntReferenz() && $alle->isNotEmpty()) {
             $spalten = ['referenz', 'status', 'versendet_am', 'fehler'];
             if ($this->outboxKenntZustellung()) {
                 $spalten = [...$spalten, 'zustellung', 'zustellung_grund', 'zustellung_am'];
             }
 
-            $zustellungen = MailOutbox::query()
-                ->whereIn('referenz', $referenzen)
-                ->get($spalten)
-                ->keyBy('referenz');
+            foreach ($alle->chunk(500) as $paket) {
+                $zustellungen = $zustellungen->merge(MailOutbox::query()
+                    ->whereIn('referenz', $paket->map(fn (Empfaenger $e) => $kampagne->mailReferenz($e->id))->all())
+                    ->get($spalten)
+                    ->keyBy('referenz'));
+            }
         }
 
-        return $seite->through(fn (Empfaenger $e) => $this->zustellZeile($kampagne, $e, $zustellungen));
+        return $alle->map(fn (Empfaenger $e) => $this->zustellZeile($kampagne, $e, $zustellungen) + [
+            'rollen' => $e->user?->roles->pluck('role_id')->all() ?? [],
+        ]);
     }
 
     /**
