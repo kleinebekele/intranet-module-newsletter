@@ -119,7 +119,7 @@
     {{-- ── Modal: Empfänger einer Ausgabe mit Zustellstatus ─────────────── --}}
     <div x-show="offen" x-cloak class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-gray-900/50 p-4 sm:p-8"
          @click.self="offen = false">
-        <div class="w-full max-w-5xl rounded-xl bg-white shadow-xl">
+        <div class="w-full rounded-xl bg-white shadow-xl">
             <div class="flex items-center justify-between border-b border-gray-200 px-5 py-3">
                 <h2 class="font-semibold text-gray-800">
                     Empfänger <span class="font-normal text-gray-500" x-text="'– ' + titel"></span>
@@ -170,7 +170,7 @@
                             <span class="text-xs text-gray-500" x-text="gefiltert().length + ' von ' + zeilen.length"></span>
                         </div>
 
-                        <div class="max-h-[60vh] overflow-auto rounded-lg border border-gray-200">
+                        <div class="max-h-[60vh] overflow-y-auto overflow-x-hidden rounded-lg border border-gray-200">
                             <table class="w-full text-sm">
                                 <thead class="sticky top-0 border-b border-gray-200 bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
                                     <tr>
@@ -184,12 +184,12 @@
                                 <tbody class="divide-y divide-gray-100">
                                     <template x-for="(z, i) in gefiltert()" :key="i">
                                         <tr class="align-top">
-                                            <td class="px-3 py-2 text-gray-800" x-text="z.name"></td>
-                                            <td class="px-3 py-2 text-gray-500" x-text="z.email"></td>
+                                            <td class="px-3 py-2 text-gray-800 [overflow-wrap:anywhere]" x-text="z.name"></td>
+                                            <td class="px-3 py-2 text-gray-500 [overflow-wrap:anywhere]" x-text="z.email"></td>
                                             <td class="px-3 py-2 text-xs text-gray-600" x-show="gruppenListe().length > 1" x-text="(z.gruppen || []).join(', ')"></td>
                                             <td class="px-3 py-2">
                                                 <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium" :class="farbe(z.farbe)" x-text="z.label"></span>
-                                                <span x-show="z.detail" class="mt-1 block text-xs text-gray-500" x-text="z.detail"></span>
+                                                <span x-show="z.detail" class="mt-1 block text-xs text-gray-500 [overflow-wrap:anywhere]" x-text="z.detail"></span>
                                             </td>
                                             <td class="px-3 py-2 text-gray-500 whitespace-nowrap" x-text="z.zeit || '—'"></td>
                                         </tr>
