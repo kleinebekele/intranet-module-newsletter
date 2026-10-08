@@ -48,6 +48,14 @@
                                 <span class="text-gray-400">–</span>
                             @else
                                 {{ $kampagne->eingeliefert_count }} von {{ $kampagne->empfaenger_count }}
+                                @php
+                                    $zu = \Intranet\Modules\Newsletter\Http\Controllers\NewsletterController::zustellUebersicht($kampagne);
+                                @endphp
+                                @if ($zu && ($zu['verzoegert'] || $zu['abgewiesen']))
+                                    <span class="block text-xs font-medium {{ $zu['abgewiesen'] ? 'text-red-700' : 'text-amber-700' }}">
+                                        {{ $zu['verzoegert'] + $zu['abgewiesen'] }} nicht zugestellt
+                                    </span>
+                                @endif
                             @endif
                         </td>
                         <td class="px-4 py-3 text-gray-500">{{ $kampagne->created_at?->format('d.m.Y') }}</td>

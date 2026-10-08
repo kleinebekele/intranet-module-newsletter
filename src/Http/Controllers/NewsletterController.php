@@ -145,6 +145,7 @@ class NewsletterController extends Controller
                 ? Empfaengerkreis::uebersicht($kampagne->zielgruppen ?? [])
                 : null,
             'empfaenger' => $empfaenger,
+            'zustellung' => $kampagne->istEntwurf() ? null : self::zustellUebersicht($kampagne),
         ]);
     }
 
@@ -197,9 +198,14 @@ class NewsletterController extends Controller
                 ->map(fn (Empfaenger $e) => $kampagne->mailReferenz($e->id))
                 ->all();
 
+            $spalten = ['referenz', 'status', 'versendet_am', 'fehler'];
+            if ($this->outboxKenntZustellung()) {
+                $spalten = [...$spalten, 'zustellung', 'zustellung_grund', 'zustellung_am'];
+            }
+
             $zustellungen = MailOutbox::query()
                 ->whereIn('referenz', $referenzen)
-                ->get(['referenz', 'status', 'versendet_am', 'fehler'])
+                ->get($spalten)
                 ->keyBy('referenz');
         }
 
@@ -245,6 +251,15 @@ class NewsletterController extends Controller
             return $basis + ['label' => 'Eingeliefert', 'farbe' => 'indigo', 'detail' => null];
         }
 
+        // Rückmeldung des Mailservers nach dem Versand (Core: App\Support\Zustellmeldungen).
+        if ($mail->status === MailOutbox::VERSENDET && $mail->zustellung) {
+            return $basis + match ($mail->zustellung) {
+                'zugestellt' => ['label' => 'Zugestellt', 'farbe' => 'green', 'detail' => null, 'zeit' => $mail->zustellung_am],
+                'verzoegert' => ['label' => 'Verzögert', 'farbe' => 'amber', 'detail' => $mail->zustellung_grund, 'zeit' => $mail->zustellung_am],
+                default => ['label' => 'Abgewiesen', 'farbe' => 'red', 'detail' => $mail->zustellung_grund, 'zeit' => $mail->zustellung_am],
+            };
+        }
+
         return $basis + match ($mail->status) {
             MailOutbox::VERSENDET => ['label' => 'Versendet', 'farbe' => 'green', 'detail' => null, 'zeit' => $mail->versendet_am],
             MailOutbox::FEHLGESCHLAGEN => ['label' => 'Versand fehlgeschlagen', 'farbe' => 'red', 'detail' => $mail->fehler],
@@ -262,6 +277,42 @@ class NewsletterController extends Controller
         static $vorhanden = null;
 
         return $vorhanden ??= Schema::hasColumn('mail_outbox', 'referenz');
+    }
+
+    /** Kennt der Core die Zustellung nach dem Versand (ab 2026-10-08)? */
+    private function outboxKenntZustellung(): bool
+    {
+        static $vorhanden = null;
+
+        return $vorhanden ??= Schema::hasColumn('mail_outbox', 'zustellung');
+    }
+
+    /**
+     * Zustellung einer Ausgabe auf einen Blick: wie viele Mails der Mailserver als
+     * zugestellt, verzögert oder abgewiesen gemeldet hat – und wie viele ohne
+     * Rückmeldung (z. B. über einen Server, der nichts zurückmeldet).
+     *
+     * @return array<string, int>|null null, wenn der Core das nicht kennt
+     */
+    public static function zustellUebersicht(Kampagne $kampagne): ?array
+    {
+        if (! Schema::hasColumn('mail_outbox', 'zustellung')) {
+            return null;
+        }
+
+        $zahlen = MailOutbox::query()
+            ->where('referenz', 'like', 'newsletter:'.$kampagne->id.':%')
+            ->where('status', MailOutbox::VERSENDET)
+            ->selectRaw('zustellung, COUNT(*) AS anzahl')
+            ->groupBy('zustellung')
+            ->pluck('anzahl', 'zustellung');
+
+        return [
+            'zugestellt' => (int) ($zahlen['zugestellt'] ?? 0),
+            'verzoegert' => (int) ($zahlen['verzoegert'] ?? 0),
+            'abgewiesen' => (int) ($zahlen['abgewiesen'] ?? 0),
+            'ohne' => (int) ($zahlen[''] ?? 0),
+        ];
     }
 
     public function destroy(Kampagne $kampagne): RedirectResponse

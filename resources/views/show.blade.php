@@ -226,6 +226,20 @@
             <p class="mt-1 text-sm text-gray-500">
                 An wen die Ausgabe ging bzw. geht – der Stand kommt direkt aus dem Maillog des Intranets.
             </p>
+            @if (! empty($zustellung) && array_sum($zustellung) > 0)
+                <p class="mt-2 text-sm">
+                    <span class="text-green-700">{{ $zustellung['zugestellt'] }} zugestellt</span>
+                    @if ($zustellung['verzoegert'])
+                        · <span class="font-medium text-amber-700">{{ $zustellung['verzoegert'] }} verzögert</span>
+                    @endif
+                    @if ($zustellung['abgewiesen'])
+                        · <span class="font-medium text-red-700">{{ $zustellung['abgewiesen'] }} abgewiesen</span>
+                    @endif
+                    @if ($zustellung['ohne'])
+                        · <span class="text-gray-500">{{ $zustellung['ohne'] }} ohne Rückmeldung</span>
+                    @endif
+                </p>
+            @endif
 
             <div class="mt-3 overflow-x-auto">
                 <table class="w-full text-sm">
