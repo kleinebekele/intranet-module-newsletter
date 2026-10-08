@@ -31,18 +31,57 @@ class NewsletterController extends Controller
 
     public function index(): View
     {
+        $kampagnen = Kampagne::query()
+            ->with('ersteller')
+            ->withCount([
+                'empfaenger',
+                'empfaenger as eingeliefert_count' => fn ($q) => $q->where('status', Empfaenger::EINGELIEFERT),
+            ])
+            // Wann ging die erste Mail raus? (Einlieferung in den Ausgangskorb)
+            ->withMin('empfaenger as erste_einlieferung', 'eingeliefert_am')
+            ->latest('id')
+            ->paginate(20);
+
+        // Entwürfe haben noch keine Empfängerliste – ihre Reichweite wird so
+        // gerechnet, als würden sie jetzt freigegeben.
+        $reichweite = [];
+        foreach ($kampagnen as $kampagne) {
+            if ($kampagne->istEntwurf()) {
+                $reichweite[$kampagne->id] = Empfaengerkreis::uebersicht($kampagne->zielgruppen ?? []);
+            }
+        }
+
         return view('newsletter::index', [
-            'kampagnen' => Kampagne::query()
-                ->with('ersteller')
-                ->withCount([
-                    'empfaenger',
-                    'empfaenger as eingeliefert_count' => fn ($q) => $q->where('status', Empfaenger::EINGELIEFERT),
-                ])
-                // Wann ging die erste Mail raus? (Einlieferung in den Ausgangskorb)
-                ->withMin('empfaenger as erste_einlieferung', 'eingeliefert_am')
-                ->latest('id')
-                ->paginate(20),
+            'kampagnen' => $kampagnen,
+            'reichweite' => $reichweite,
+            'zielgruppenNamen' => $this->zielgruppenNamen($kampagnen),
         ]);
+    }
+
+    /**
+     * Anzeigenamen der Rollen und manuellen Gruppen, die in diesen Ausgaben
+     * als Zielgruppe stehen.
+     *
+     * @param  iterable<Kampagne>  $kampagnen
+     * @return array<string, string>
+     */
+    private function zielgruppenNamen(iterable $kampagnen): array
+    {
+        $gruppenIds = [];
+        foreach ($kampagnen as $kampagne) {
+            foreach ($kampagne->zielgruppen ?? [] as $z) {
+                if (is_string($z) && ($id = Gruppe::idAus($z)) !== null) {
+                    $gruppenIds[] = $id;
+                }
+            }
+        }
+
+        $namen = Empfaengerkreis::rollen()->pluck('name', 'role_id')->all();
+        foreach (($gruppenIds === [] ? collect() : Gruppe::whereIn('id', array_unique($gruppenIds))->get()) as $g) {
+            $namen[$g->kennung()] = $g->name.' (manuell)';
+        }
+
+        return $namen;
     }
 
     public function create(Request $request): View
@@ -127,18 +166,8 @@ class NewsletterController extends Controller
             ? null
             : $this->empfaengerMitStatus($kampagne);
 
-        // Namen der manuellen Gruppen und Rollen für die Zielgruppen-Anzeige.
-        $gruppenIds = array_values(array_filter(array_map(
-            fn ($z) => is_string($z) ? Gruppe::idAus($z) : null,
-            $kampagne->zielgruppen ?? [],
-        )));
-        $namen = Empfaengerkreis::rollen()->pluck('name', 'role_id')->all();
-        foreach (($gruppenIds === [] ? collect() : Gruppe::whereIn('id', $gruppenIds)->get()) as $g) {
-            $namen[$g->kennung()] = $g->name.' (manuell)';
-        }
-
         return view('newsletter::show', [
-            'zielgruppenNamen' => $namen,
+            'zielgruppenNamen' => $this->zielgruppenNamen([$kampagne]),
             'kampagne' => $kampagne->load('ersteller'),
             'fortschritt' => $kampagne->fortschritt(),
             'uebersicht' => $kampagne->istEntwurf()

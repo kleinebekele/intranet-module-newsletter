@@ -23,6 +23,7 @@
                     <th class="px-4 py-3 font-semibold">Ausgabe</th>
                     <th class="px-4 py-3 font-semibold">Betreff</th>
                     <th class="px-4 py-3 font-semibold">Status</th>
+                    <th class="px-4 py-3 font-semibold">Zielgruppen</th>
                     <th class="px-4 py-3 font-semibold">Empfänger</th>
                     <th class="px-4 py-3 font-semibold">Angelegt</th>
                     <th class="px-4 py-3 font-semibold">Versendet</th>
@@ -43,9 +44,23 @@
                         <td class="px-4 py-3">
                             @include('newsletter::partials.status', ['status' => $kampagne->status, 'versandAb' => $kampagne->versand_ab])
                         </td>
-                        <td class="px-4 py-3 text-gray-600">
+                        <td class="px-4 py-3">
+                            <div class="flex flex-wrap gap-1">
+                                @forelse ($kampagne->zielgruppen ?? [] as $gruppe)
+                                    <span class="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 whitespace-nowrap">
+                                        {{ $gruppe === 'alle' ? 'Alle Benutzer' : ($zielgruppenNamen[$gruppe] ?? $gruppe) }}
+                                    </span>
+                                @empty
+                                    <span class="text-gray-400">–</span>
+                                @endforelse
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 text-gray-600 whitespace-nowrap">
                             @if ($kampagne->istEntwurf())
-                                <span class="text-gray-400">–</span>
+                                @if ($r = $reichweite[$kampagne->id] ?? null)
+                                    <span @class(['font-medium text-amber-700' => $r['erreichbar'] === 0])>{{ $r['erreichbar'] }} von {{ $r['gesamt'] }}</span>
+                                    <span class="block text-xs text-gray-400">wenn jetzt freigegeben</span>
+                                @endif
                             @else
                                 {{ $kampagne->eingeliefert_count }} von {{ $kampagne->empfaenger_count }}
                                 @php
@@ -83,7 +98,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-4 py-10 text-center text-gray-500">
+                        <td colspan="8" class="px-4 py-10 text-center text-gray-500">
                             Noch keine Ausgabe. Lege die erste an – verschickt wird erst nach ausdrücklicher Freigabe.
                         </td>
                     </tr>
