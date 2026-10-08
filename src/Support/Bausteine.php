@@ -148,8 +148,10 @@ class Bausteine
                 'knopf' => trim(($b['text'] ?? '').': '.($b['url'] ?? ''), ': '),
                 'trenner' => '—',
                 // Aus dem rohen HTML eine lesbare Textspur: Tags weg, Entities
-                // auflösen, Leerraum zusammenziehen.
-                'html' => trim(preg_replace('/[ \t]*\R\s*/', "\n", html_entity_decode(
+                // auflösen, Leerraum zusammenziehen. Das /u ist Pflicht: Ohne
+                // trifft \s einzelne Bytes wie das A0 aus &nbsp; (C2 A0) und
+                // hinterlässt kaputtes UTF-8 – die Vorschau scheitert dann mit 500.
+                'html' => trim(preg_replace('/[ \t]*\R\s*/u', "\n", html_entity_decode(
                     strip_tags(preg_replace('~<(br|/p|/div|/tr|/h[1-6]|/li)[^>]*>~i', "\n", (string) ($b['html'] ?? ''))),
                     ENT_QUOTES | ENT_HTML5,
                     'UTF-8',
@@ -167,7 +169,7 @@ class Bausteine
      */
     private static function absaetze(string $text): string
     {
-        $absaetze = preg_split('/\R{2,}/', trim($text)) ?: [];
+        $absaetze = preg_split('/\R{2,}/u', trim($text)) ?: [];
         $html = [];
 
         foreach ($absaetze as $absatz) {
@@ -193,7 +195,7 @@ class Bausteine
     private static function verlinken(string $maskiert): string
     {
         return preg_replace(
-            '~(https?://[^\s<]+?)(?=[.,;:!?)]?(?:\s|<br|$))~i',
+            '~(https?://[^\s<]+?)(?=[.,;:!?)]?(?:\s|<br|$))~iu',
             '<a href="$1" style="color:#4f46e5;">$1</a>',
             $maskiert,
         ) ?? $maskiert;
