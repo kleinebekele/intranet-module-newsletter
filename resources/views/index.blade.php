@@ -58,7 +58,7 @@
                         <td class="px-4 py-3 text-gray-600 whitespace-nowrap">
                             @if ($kampagne->istEntwurf())
                                 @if ($r = $reichweite[$kampagne->id] ?? null)
-                                    <span @class(['font-medium text-amber-700' => $r['erreichbar'] === 0])>{{ $r['erreichbar'] }} von {{ $r['gesamt'] }}</span>
+                                    <span @class(['font-medium text-amber-700' => $r['erreichbar'] === 0])>0 von {{ $r['erreichbar'] }}</span>
                                     <span class="block text-xs text-gray-400">wenn jetzt freigegeben</span>
                                 @endif
                             @else
