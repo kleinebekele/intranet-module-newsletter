@@ -117,7 +117,7 @@
     </div>
 
     {{-- ── Modal: Empfänger einer Ausgabe mit Zustellstatus ─────────────── --}}
-    <div x-show="offen" x-cloak class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-gray-900/50 p-4 sm:p-8"
+    <div x-show="offen" x-cloak class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:p-8" style="background: rgb(0 0 0 / 0.6)"
          @click.self="offen = false">
         <div class="w-full rounded-xl bg-white shadow-xl">
             <div class="flex items-center justify-between border-b border-gray-200 px-5 py-3">
