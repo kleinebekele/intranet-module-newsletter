@@ -58,7 +58,8 @@
                             @endunless
                             <form method="POST" action="{{ route('module.newsletter.vorlagen.destroy', $vorlage) }}"
                                   class="ml-3 inline"
-                                  onsubmit="return confirm('Vorlage „{{ $vorlage->name }}“ löschen? Ausgaben, die sie nutzen, fallen auf den allgemeinen Rahmen zurück.');">
+                                  data-bestaetigen="Vorlage „{{ $vorlage->name }}“ löschen? Ausgaben, die sie nutzen, fallen auf den allgemeinen Rahmen zurück."
+                                  data-titel="Vorlage löschen" data-knopf="Löschen">
                                 @csrf @method('DELETE')
                                 <button type="submit" class="text-sm text-gray-500 hover:text-red-600">Löschen</button>
                             </form>

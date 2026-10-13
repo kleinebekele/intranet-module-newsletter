@@ -4,7 +4,10 @@ namespace Intranet\Modules\Newsletter\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Mail\Vorlagen\VorlagenMailer;
+use App\Modules\Support\Modulzugriff;
+use App\Modules\Support\Zugriffsstufe;
 use App\Models\MailOutbox;
+use App\Models\User;
 use App\Support\Zustellbarkeit;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\JsonResponse;
@@ -137,6 +140,7 @@ class NewsletterController extends Controller
         return [
             'kampagne' => $kampagne,
             'rollen' => Empfaengerkreis::rollen(),
+            'darfAlle' => self::darfVerwalten($request),
             'konten' => Zusteller::konten(),
             'vorlagen' => Vorlage::orderBy('name')->get(),
             'gruppen' => $eigene->map(fn (Gruppe $g) => $g->fuerFormular())->values(),
@@ -224,9 +228,14 @@ class NewsletterController extends Controller
             $kampagne->vorlage(),
         );
 
+        // Die Mail kann rohes HTML aus einem Baustein enthalten. `sandbox` gibt
+        // ihr eine fremde Herkunft und verbietet Skripte – auch wenn jemand die
+        // Adresse direkt im Tab öffnet statt im (ohnehin sandboxed) Iframe.
+        // Bilder, Styles und Schriften der Mail laden weiter.
         return response($fertig['html'])
             ->header('Content-Type', 'text/html; charset=UTF-8')
-            ->header('X-Frame-Options', 'SAMEORIGIN');
+            ->header('X-Frame-Options', 'SAMEORIGIN')
+            ->header('Content-Security-Policy', "sandbox; default-src 'none'; img-src * data:; style-src 'unsafe-inline' *; font-src * data:");
     }
 
     /**
@@ -385,6 +394,10 @@ class NewsletterController extends Controller
      */
     public function freigeben(Request $request, Kampagne $kampagne): RedirectResponse
     {
+        // Das Manifest verlangt dafür schon „verwalten" auf „Ausgaben"; hier
+        // nochmals, weil eine Freigabe sich nicht zurücknehmen lässt.
+        abort_unless(self::darfVerwalten($request), 403);
+
         if (! $kampagne->istEntwurf()) {
             return back()->with('error', 'Diese Ausgabe wurde bereits freigegeben.');
         }
@@ -442,12 +455,24 @@ class NewsletterController extends Controller
     }
 
     /**
-     * Testmail an eine frei eingegebene Adresse – dieselbe Mechanik wie unter
-     * Mailvorlagen, inklusive [TEST]-Präfix im Betreff.
+     * Testmail an die eigene Adresse oder die eines Intranet-Benutzers –
+     * dieselbe Mechanik wie unter Mailvorlagen, inklusive [TEST]-Präfix im
+     * Betreff. Fremde Adressen sind gesperrt: Sonst wäre das Formular ein
+     * Spam-Werfer mit dem Absender der Schule (Route zusätzlich gedrosselt).
      */
     public function testmail(Request $request): JsonResponse
     {
-        $daten = $request->validate(['an' => ['required', 'email']]);
+        $daten = $request->validate([
+            'an' => ['required', 'email', 'max:191'],
+            // Dieselben Grenzen wie beim Speichern einer Ausgabe (siehe daten()).
+            'absender_name' => ['nullable', 'string', 'max:120'],
+            'antwort_an' => ['nullable', 'email', 'max:191'],
+            'mail_konto_id' => ['nullable', 'integer', Rule::in(Zusteller::konten()->pluck('id')->all())],
+        ]);
+
+        if (! $this->testAdresseErlaubt($request, $daten['an'])) {
+            return response()->json(['ok' => false, 'meldung' => 'Testmails gehen nur an deine eigene Adresse oder an Benutzer des Intranets.'], 422);
+        }
 
         if (! Zustellbarkeit::zustellbar($daten['an'])) {
             return response()->json(['ok' => false, 'meldung' => 'An diese Adresse kann nicht zugestellt werden.'], 422);
@@ -474,6 +499,18 @@ class NewsletterController extends Controller
             'ok' => true,
             'meldung' => "Testmail an {$daten['an']} liegt im Ausgangskorb.",
         ]);
+    }
+
+    /** Eigene Adresse oder die eines vorhandenen Benutzers (Groß/Klein egal)? */
+    private function testAdresseErlaubt(Request $request, string $an): bool
+    {
+        $an = mb_strtolower(trim($an));
+
+        if ($an === mb_strtolower((string) $request->user()->email)) {
+            return true;
+        }
+
+        return User::query()->whereRaw('LOWER(email) = ?', [$an])->exists();
     }
 
     /**
@@ -527,6 +564,13 @@ class NewsletterController extends Controller
             'zielgruppen.*' => ['string'],
             'bausteine' => ['nullable', 'string'],
         ]);
+
+        // Adressen ohne erlaubtes Schema würden beim Bereinigen still wegfallen –
+        // lieber zurück ins Formular, damit man sie korrigiert.
+        $roh = json_decode((string) $request->input('bausteine', '[]'), true);
+        if (is_array($roh) && ($verworfen = Bausteine::verworfeneAdressen($roh)) !== []) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['bausteine' => $verworfen]);
+        }
 
         return [
             'titel' => trim((string) $request->input('titel')),
@@ -599,10 +643,20 @@ class NewsletterController extends Controller
     {
         $gewaehlt = array_values(array_filter((array) $request->input('zielgruppen', []), 'is_string'));
 
-        $erlaubt = Empfaengerkreis::rollen()
-            ->pluck('role_id')
-            ->push(Empfaengerkreis::ALLE)
-            ->all();
+        $erlaubt = Empfaengerkreis::rollen()->pluck('role_id')->all();
+
+        // „Alle Benutzer" nur mit Stufe verwalten auf „Ausgaben". Wer weniger
+        // darf, lässt den Haken, wie er war – ein schon gesetztes „alle" geht
+        // beim Speichern nicht verloren, ein neues kommt nicht dazu.
+        if ($nurVorschau || self::darfVerwalten($request)) {
+            $erlaubt[] = Empfaengerkreis::ALLE;
+        } else {
+            $gewaehlt = array_values(array_diff($gewaehlt, [Empfaengerkreis::ALLE]));
+            if (in_array(Empfaengerkreis::ALLE, $kampagne?->zielgruppen ?? [], true)) {
+                $gewaehlt[] = Empfaengerkreis::ALLE;
+                $erlaubt[] = Empfaengerkreis::ALLE;
+            }
+        }
 
         $gruppenIds = array_values(array_filter(array_map(fn ($z) => Gruppe::idAus($z), $gewaehlt)));
 
@@ -623,6 +677,18 @@ class NewsletterController extends Controller
         }
 
         return array_values(array_intersect($gewaehlt, $erlaubt));
+    }
+
+    /**
+     * Hat der Benutzer auf dem Menüpunkt „Ausgaben" die Stufe verwalten (Admins
+     * immer)? Gilt für „an alle" und die Freigabe – unabhängig davon, über
+     * welche Route die Anfrage kam (Anlegen hängt an „Neue Ausgabe").
+     */
+    public static function darfVerwalten(Request $request): bool
+    {
+        return app(Modulzugriff::class)
+            ->stufeFuer($request->user(), 'module.newsletter.index')
+            ?->reichtFuer(Zugriffsstufe::Verwalten) ?? false;
     }
 
     /**

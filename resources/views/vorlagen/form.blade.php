@@ -129,7 +129,10 @@
                     <span class="font-medium text-gray-700" x-text="vorschauBetreff"></span>
                 </p>
                 <div class="rounded-xl border border-gray-200 bg-white p-2">
-                    <iframe x-ref="vorschau" class="h-[36rem] w-full rounded" title="Vorschau"></iframe>
+                    {{-- sandbox ohne allow-scripts/allow-same-origin: Skripte im
+                         Vorlagen-HTML laufen nicht und kommen nicht an die Sitzung. --}}
+                    <iframe x-ref="vorschau" sandbox="allow-popups allow-popups-to-escape-sandbox"
+                            class="h-[36rem] w-full rounded" title="Vorschau"></iframe>
                 </div>
             </div>
 

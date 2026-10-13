@@ -13,9 +13,10 @@ use Intranet\Modules\Newsletter\Http\Controllers\VorlageController;
  |  - Namen:       module.newsletter.*
  |  - Middleware:  'web' + 'auth'
  |
- | Wer das Modul sehen darf, darf auch schreiben und freigeben. Das steuert die
- | Rollen-Sichtbarkeit des Moduls in der Modulverwaltung – für eine eigene
- | „Redaktion"-Rolle legt man dort einfach eine an und gibt nur ihr das Modul frei.
+ | Wer was darf, folgt den Zugriffsstufen der Menüpunkte (Verwaltung → Module):
+ | Die Routen hier sind im Manifest per gehoertZu() an „Ausgaben", „Neue
+ | Ausgabe" bzw. „Mailvorlagen" gebunden. Freigeben und „an alle" verlangen
+ | verwalten auf „Ausgaben".
 */
 Route::middleware(['web', 'auth'])
     ->prefix('modules/newsletter')
@@ -29,7 +30,8 @@ Route::middleware(['web', 'auth'])
         // „reichweite" nicht als Ausgaben-ID gelesen wird.
         Route::post('/reichweite', [NewsletterController::class, 'reichweite'])->name('reichweite');
         Route::post('/vorschau', [NewsletterController::class, 'vorschau'])->name('vorschau');
-        Route::post('/testmail', [NewsletterController::class, 'testmail'])->name('testmail');
+        // Gedrosselt: zehn Testmails je Minute und Benutzer reichen zum Ausprobieren.
+        Route::post('/testmail', [NewsletterController::class, 'testmail'])->middleware('throttle:10,1')->name('testmail');
         Route::post('/bild', [NewsletterController::class, 'bild'])->name('bild');
 
         // Persönliche Zielgruppen (Modal im Ausgabe-Formular, JSON). Vor {kampagne}.

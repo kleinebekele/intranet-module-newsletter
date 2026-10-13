@@ -68,14 +68,14 @@ class Bausteine
                 ],
                 'bild' => [
                     'typ' => 'bild',
-                    'url' => self::text($baustein['url'] ?? ''),
+                    'url' => self::adresse($baustein['url'] ?? '', self::SCHEMA_BILD),
                     'alt' => self::text($baustein['alt'] ?? ''),
-                    'link' => self::text($baustein['link'] ?? ''),
+                    'link' => self::adresse($baustein['link'] ?? '', self::SCHEMA_LINK),
                 ],
                 'knopf' => [
                     'typ' => 'knopf',
                     'text' => self::text($baustein['text'] ?? ''),
-                    'url' => self::text($baustein['url'] ?? ''),
+                    'url' => self::adresse($baustein['url'] ?? '', self::SCHEMA_LINK),
                 ],
                 'trenner' => ['typ' => 'trenner'],
                 // Roh, nicht maskiert – siehe Klassenkommentar.
@@ -96,6 +96,37 @@ class Bausteine
     }
 
     /**
+     * Welche eingegebenen Adressen würde {@see bereinigen()} verwerfen? Für
+     * eine Fehlermeldung beim Speichern – sonst verschwände z. B. ein Knopf mit
+     * `www.schule.de` (ohne https://) kommentarlos aus der Ausgabe.
+     *
+     * @param  array<int, mixed>  $roh
+     * @return array<int, string>  je verworfener Adresse ein Satz für die Oberfläche
+     */
+    public static function verworfeneAdressen(array $roh): array
+    {
+        $felder = [
+            'bild' => ['url' => [self::SCHEMA_BILD, 'Bild-Adresse'], 'link' => [self::SCHEMA_LINK, 'Bild-Link']],
+            'knopf' => ['url' => [self::SCHEMA_LINK, 'Knopf-Ziel']],
+        ];
+        $meldungen = [];
+
+        foreach (array_values($roh) as $nr => $baustein) {
+            $typ = is_array($baustein) && is_string($baustein['typ'] ?? null) ? $baustein['typ'] : '';
+
+            foreach ($felder[$typ] ?? [] as $feld => [$schema, $label]) {
+                $wert = self::text($baustein[$feld] ?? '');
+                if ($wert !== '' && self::adresse($wert, $schema) === '') {
+                    $meldungen[] = sprintf('Baustein %d: %s „%s" beginnt nicht mit %s.', $nr + 1, $label, mb_strimwidth($wert, 0, 60, '…'),
+                        $schema === self::SCHEMA_BILD ? 'https:// (oder ist ein hochgeladenes Bild)' : 'https:// oder mailto:');
+                }
+            }
+        }
+
+        return $meldungen;
+    }
+
+    /**
      * Die Bausteine als Mail-HTML.
      *
      * @param  array<int, array<string, mixed>>  $bausteine
@@ -113,10 +144,12 @@ class Bausteine
                 ),
                 'text' => self::absaetze($b['text']),
                 'bild' => self::bild($b),
-                'knopf' => sprintf(
+                // Auch beim Rendern nochmals geprüft: Ausgaben von vor der
+                // Schema-Prüfung tragen ihre Adressen ungeprüft in der DB.
+                'knopf' => ($url = self::adresse($b['url'] ?? '', self::SCHEMA_LINK)) === '' ? '' : sprintf(
                     '<p style="margin:0 0 20px;"><a href="%s" style="display:inline-block;background:#4f46e5;color:#ffffff;'
                     .'text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold;">%s</a></p>',
-                    e($b['url']),
+                    e($url),
                     e($b['text']),
                 ),
                 'trenner' => '<hr style="border:0;border-top:1px solid #e5e7eb;margin:24px 0;">',
@@ -204,21 +237,46 @@ class Bausteine
     /** @param  array<string, mixed>  $b */
     private static function bild(array $b): string
     {
-        if (($b['url'] ?? '') === '') {
+        $url = self::adresse($b['url'] ?? '', self::SCHEMA_BILD);
+        if ($url === '') {
             return '';
         }
 
         $img = sprintf(
             '<img src="%s" alt="%s" style="display:block;max-width:100%%;height:auto;border:0;border-radius:8px;">',
-            e($b['url']),
+            e($url),
             e($b['alt'] ?? ''),
         );
 
-        if (($b['link'] ?? '') !== '') {
-            $img = sprintf('<a href="%s">%s</a>', e($b['link']), $img);
+        $link = self::adresse($b['link'] ?? '', self::SCHEMA_LINK);
+        if ($link !== '') {
+            $img = sprintf('<a href="%s">%s</a>', e($link), $img);
         }
 
         return '<p style="margin:0 0 16px;">'.$img.'</p>';
+    }
+
+    /** Erlaubte Anfänge für Knopf- und Bild-Links. */
+    private const SCHEMA_LINK = '~^(https?://|mailto:)~i';
+
+    /** Erlaubte Anfänge für Bildquellen: Webadresse oder eingebettetes Bild. */
+    private const SCHEMA_BILD = '~^(https?://|data:image/)~i';
+
+    /**
+     * Eine Adresse nur durchlassen, wenn sie mit einem erlaubten Schema beginnt –
+     * sonst leer. Hält `javascript:` & Co. aus Knöpfen und Bildern fern (das
+     * Maskieren allein hilft dagegen nicht, das Schema bleibt ja stehen).
+     * Steuerzeichen fallen vorher auf: Browser ignorieren sie mitten im Schema.
+     */
+    private static function adresse(mixed $wert, string $schema): string
+    {
+        $url = self::text($wert);
+
+        if ($url === '' || preg_match('/[\x00-\x1F\x7F]/', $url) || ! preg_match($schema, $url)) {
+            return '';
+        }
+
+        return $url;
     }
 
     private static function text(mixed $wert): string

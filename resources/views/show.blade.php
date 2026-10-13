@@ -51,9 +51,12 @@
             </p>
 
             {{-- Die fertige Mail samt Rahmen, Kopf und Fuß – so, wie sie ankommt.
-                 Im Iframe, damit das Mail-CSS nicht mit dem Intranet-Layout kollidiert. --}}
+                 Im Iframe, damit das Mail-CSS nicht mit dem Intranet-Layout kollidiert;
+                 sandbox (ohne Skripte, ohne eigene Herkunft), damit Roh-HTML aus
+                 einem Baustein nicht an die Intranet-Sitzung kommt. --}}
             <div class="mt-4 overflow-hidden rounded-lg border border-gray-200 bg-white">
                 <iframe src="{{ route('module.newsletter.mail-vorschau', $kampagne) }}"
+                        sandbox="allow-popups allow-popups-to-escape-sandbox"
                         class="h-[40rem] w-full" title="Vorschau der Mail"></iframe>
             </div>
 
@@ -115,9 +118,11 @@
                         gedrosselt über den Ausgangskorb.
                     </p>
 
+                    @darfRoute('module.newsletter.freigeben')
                     <form method="POST" action="{{ route('module.newsletter.freigeben', $kampagne) }}"
                           class="mt-3" x-data="{ ab: '' }"
-                          onsubmit="return confirm('Diese Ausgabe an {{ $uebersicht['erreichbar'] ?? 0 }} Empfänger freigeben? Das lässt sich nicht zurücknehmen.');">
+                          data-bestaetigen="Diese Ausgabe an {{ $uebersicht['erreichbar'] ?? 0 }} Empfänger freigeben? Das lässt sich nicht zurücknehmen."
+                          data-titel="Ausgabe freigeben" data-knopf="Freigeben">
                         @csrf
                         {{-- Optionaler Termin: leer = sofort. Wird als datetime-local
                              (Ortszeit) geschickt und serverseitig geparst. --}}
@@ -136,16 +141,26 @@
                             Jetzt freigeben und verschicken
                         </button>
                     </form>
+                    @else
+                    <p class="mt-3 text-sm text-gray-500">
+                        Freigeben darf nur, wer Ausgaben verwalten darf.
+                    </p>
+                    @enddarfRoute
 
                     <div class="mt-3 flex items-center justify-between">
+                        @darfRoute('module.newsletter.edit')
                         <a href="{{ route('module.newsletter.edit', $kampagne) }}"
                            class="text-sm text-indigo-700 hover:underline">Bearbeiten</a>
+                        @enddarfRoute
 
+                        @darfRoute('module.newsletter.destroy')
                         <form method="POST" action="{{ route('module.newsletter.destroy', $kampagne) }}"
-                              onsubmit="return confirm('Diesen Entwurf löschen?');">
+                              data-bestaetigen="Diesen Entwurf löschen?"
+                              data-titel="Entwurf löschen" data-knopf="Löschen">
                             @csrf @method('DELETE')
                             <button type="submit" class="text-sm text-gray-500 hover:text-red-600">Löschen</button>
                         </form>
+                        @enddarfRoute
                     </div>
                 </section>
             @else

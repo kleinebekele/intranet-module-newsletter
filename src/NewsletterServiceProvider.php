@@ -4,6 +4,7 @@ namespace Intranet\Modules\Newsletter;
 
 use App\Modules\Support\ModuleManifest;
 use App\Modules\Support\ModuleServiceProvider;
+use App\Modules\Support\Zugriffsstufe;
 use Illuminate\Console\Scheduling\Schedule;
 use Intranet\Modules\Newsletter\Console\NewsletterVersenden;
 
@@ -41,9 +42,24 @@ class NewsletterServiceProvider extends ModuleServiceProvider
             ->item('create', 'Neue Ausgabe', 'module.newsletter.create', icon: 'plus')
             // Eigene Rahmen der Redaktion – ohne Umweg über Verwaltung → Mailvorlagen.
             ->item('vorlagen', 'Mailvorlagen', 'module.newsletter.vorlagen.index', icon: 'layout')
-            // Zugriffsstufen: diese POSTs rechnen bzw. rendern nur (MODULES.md im
-            // Core, „Zugriffsstufen").
-            ->lesend('reichweite', 'vorschau', 'vorlagen.vorschau');
+            // Welcher Menüpunkt für welche Route zuständig ist. Ohne Zuordnung
+            // bekäme eine Route nicht die Stufe ihres Menüpunkts (MODULES.md im
+            // Core, „Zugriffsstufen"). Anlegen hängt an „Neue Ausgabe", alles an
+            // einer bestehenden Ausgabe samt Editor-Werkzeugen an „Ausgaben" –
+            // nach dem Anlegen landet man ohnehin auf deren Detailseite.
+            ->gehoertZu('create', 'store')
+            ->gehoertZu('index',
+                'show', 'mail-vorschau', 'empfaenger', 'edit', 'update', 'destroy', 'freigeben',
+                'reichweite', 'vorschau', 'testmail', 'bild', 'gruppen',
+            )
+            ->gehoertZu('vorlagen', 'vorlagen')
+            // Zugriffsstufen: diese POSTs rechnen bzw. rendern nur.
+            ->lesend('reichweite', 'vorschau', 'vorlagen.vorschau')
+            // Die Freigabe verschickt und lässt sich nicht zurücknehmen → verwalten.
+            ->stufe(Zugriffsstufe::Verwalten, 'freigeben')
+            // Persönliche Zielgruppen gehören ihrem Ersteller (Controller prüft
+            // das); wer eine Ausgabe bearbeiten darf, darf sich welche anlegen.
+            ->stufe(Zugriffsstufe::Bearbeiten, 'gruppen.store', 'gruppen.destroy');
     }
 
     public function boot(): void

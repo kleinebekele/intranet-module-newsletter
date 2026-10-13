@@ -57,20 +57,27 @@ class Zusteller
         $werte = self::werteMitBetreff($betreff, $werte);
 
         if ($mitRahmen) {
-            $htmlWerte = $werte + ['inhalt' => Platzhalter::ersetzen($html, $werte)];
-            $textWerte = ['inhalt' => Platzhalter::ersetzen($text, $werte)];
+            // Ins HTML gehen Name, Titel und Betreff maskiert, in den Klartext
+            // roh. Der Core setzt seine Werte unverändert ein – deshalb maskieren
+            // wir hier und geben der Textfassung die rohen Werte eigens mit.
+            $htmlWerte = Platzhalter::fuerHtml($werte) + ['inhalt' => Platzhalter::ersetzen($html, $werte, html: true)];
+            $textWerte = $werte + ['inhalt' => Platzhalter::ersetzen($text, $werte)];
 
-            if ($vorlage !== null) {
-                return self::imEigenenRahmen($mailer, $vorlage, $htmlWerte, $textWerte);
-            }
+            $fertig = $vorlage !== null
+                ? self::imEigenenRahmen($mailer, $vorlage, $htmlWerte, $textWerte)
+                : $mailer->rendern(NewsletterServiceProvider::VORLAGE, $htmlWerte, $textWerte);
 
-            return $mailer->rendern(NewsletterServiceProvider::VORLAGE, $htmlWerte, $textWerte);
+            // Den Betreff baut der Core aus den HTML-Werten – ein „&" stünde
+            // sonst als „&amp;" in der Betreffzeile. Ein Betreff ist Klartext.
+            $fertig['betreff'] = htmlspecialchars_decode($fertig['betreff'], ENT_QUOTES);
+
+            return $fertig;
         }
 
         // Ohne Rahmen: das eingegebene HTML ist die ganze Mail.
         return [
             'betreff' => $werte['betreff'],
-            'html' => Platzhalter::ersetzen($html, $werte),
+            'html' => Platzhalter::ersetzen($html, $werte, html: true),
             'text' => Platzhalter::ersetzen($text, $werte),
         ];
     }

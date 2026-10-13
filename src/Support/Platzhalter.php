@@ -27,12 +27,24 @@ class Platzhalter
     ];
 
     /**
-     * @param  array<string, string>  $werte
+     * Werte, die schon fertiges HTML SIND und deshalb roh eingesetzt werden:
+     * die Bausteine (`inhalt`) und das Logo-Tag des Core. Alles andere ist
+     * eingetippter Text (Name, Titel, Betreff) und wird im HTML maskiert.
      */
-    public static function ersetzen(string $inhalt, array $werte): string
+    public const ROH = ['inhalt', 'logo'];
+
+    /**
+     * @param  array<string, string>  $werte
+     * @param  bool  $html  true = Ziel ist HTML: Textwerte maskieren (siehe {@see fuerHtml()})
+     */
+    public static function ersetzen(string $inhalt, array $werte, bool $html = false): string
     {
         if ($inhalt === '') {
             return '';
+        }
+
+        if ($html) {
+            $werte = self::fuerHtml($werte);
         }
 
         return preg_replace_callback(
@@ -42,5 +54,23 @@ class Platzhalter
                 : $treffer[0],
             $inhalt,
         ) ?? $inhalt;
+    }
+
+    /**
+     * Die Werte fürs HTML: Textwerte mit e() maskiert, {@see ROH} unverändert.
+     * Ein Benutzername wie `<img onerror=…>` steht so als Text in der Mail.
+     *
+     * @param  array<string, string>  $werte
+     * @return array<string, string>
+     */
+    public static function fuerHtml(array $werte): array
+    {
+        foreach ($werte as $name => $wert) {
+            if (! in_array($name, self::ROH, true)) {
+                $werte[$name] = e((string) $wert);
+            }
+        }
+
+        return $werte;
     }
 }

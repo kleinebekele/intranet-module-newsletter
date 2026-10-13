@@ -94,7 +94,8 @@
                                    class="ml-3 text-sm text-indigo-700 hover:underline">Bearbeiten</a>
                                 <form method="POST" action="{{ route('module.newsletter.destroy', $kampagne) }}"
                                       class="ml-3 inline"
-                                      onsubmit="return confirm('Entwurf „{{ $kampagne->titel }}“ löschen?');">
+                                      data-bestaetigen="Entwurf „{{ $kampagne->titel }}“ löschen?"
+                                      data-titel="Entwurf löschen" data-knopf="Löschen">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="text-sm text-gray-500 hover:text-red-600">Löschen</button>
                                 </form>

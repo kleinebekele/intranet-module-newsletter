@@ -4,14 +4,18 @@
     <div class="mb-2 border-b border-gray-100 px-2 py-1 text-sm text-gray-500">
         Betreff: <span class="font-medium text-gray-700" x-text="vorschauBetreff || '—'"></span>
     </div>
-    <iframe x-ref="vorschau" class="h-[36rem] w-full rounded" title="Vorschau"></iframe>
+    {{-- sandbox ohne allow-scripts/allow-same-origin: Skripte im (Roh-)HTML einer
+         Ausgabe laufen nicht und kommen nicht an die Intranet-Sitzung. --}}
+    <iframe x-ref="vorschau" sandbox="allow-popups allow-popups-to-escape-sandbox"
+            class="h-[36rem] w-full rounded" title="Vorschau"></iframe>
 </div>
 
 <div class="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
     <div class="mb-1 text-sm font-medium text-gray-700">Testmail versenden</div>
     <p class="mb-3 text-xs text-gray-500">
         Schickt die Ausgabe so, wie sie gerade im Formular steht – auch ungespeichert.
-        Platzhalter werden dabei mit deinen eigenen Daten gefüllt.
+        Platzhalter werden dabei mit deinen eigenen Daten gefüllt. Möglich ist deine
+        eigene Adresse oder die eines Intranet-Benutzers.
     </p>
     <div class="flex flex-wrap items-center gap-2">
         <input type="email" x-model="testEmail" placeholder="empfaenger@example.org"

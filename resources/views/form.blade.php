@@ -4,6 +4,10 @@
     $gewaehlt = old('zielgruppen', $kampagne->zielgruppen ?? []);
     // Rahmen-Dropdown: '' = allgemeiner Rahmen, 'keine' = ohne Rahmen, Zahl = eigene Vorlage.
     $rahmenWert = old('rahmen', $kampagne->mit_rahmen === false ? 'keine' : (string) ($kampagne->vorlage_id ?? ''));
+    // Nach einem Validierungsfehler die eingegebenen Bausteine zurückholen (roh,
+    // damit eine beanstandete Adresse zum Korrigieren noch dasteht).
+    $alteBausteine = old('bausteine') !== null ? json_decode((string) old('bausteine'), true) : null;
+    $bausteineStart = is_array($alteBausteine) ? array_values(array_filter($alteBausteine, 'is_array')) : ($kampagne->bausteine ?? []);
 @endphp
 
 <x-app-layout>
@@ -26,7 +30,7 @@
          ein gerades " beendet das Attribut, und Alpine bindet dann titel/betreff
          an die globalen Input-Elemente ("[object HTMLInputElement]"). --}}
     <div x-data="newsletterEditor({
-            bausteine: @js($kampagne->bausteine ?? []),
+            bausteine: @js($bausteineStart),
             urls: {
                 reichweite: @js(route('module.newsletter.reichweite')),
                 vorschau: @js(route('module.newsletter.vorschau')),
@@ -193,9 +197,13 @@
                             </label>
                         @endforeach
 
-                        <label class="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50">
+                        {{-- „Alle" nur mit Stufe verwalten auf „Ausgaben". Sonst bleibt der
+                             Haken, wie er ist (der Server hält ihn ebenso fest). --}}
+                        <label class="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50 {{ $darfAlle ? '' : 'opacity-60' }}"
+                               @unless ($darfAlle) title="An alle verschicken darf nur, wer Ausgaben verwalten darf." @endunless>
                             <input type="checkbox" name="zielgruppen[]" value="alle" @change="reichweiteLaden()"
                                    @checked(in_array('alle', $gewaehlt, true))
+                                   @disabled(! $darfAlle)
                                    class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
                             <span class="font-medium text-gray-800">Alle Benutzer</span>
                         </label>
@@ -260,6 +268,17 @@
                         <p x-show="platzhalterHinweis" x-cloak x-text="platzhalterHinweis" class="mt-1 text-xs text-amber-700"></p>
                     </div>
                 </div>
+
+                @if ($errors->has('bausteine'))
+                    <div class="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                        <p class="font-medium">Nicht gespeichert – bitte diese Adressen korrigieren:</p>
+                        <ul class="mt-1 list-disc pl-5 text-xs">
+                            @foreach ($errors->get('bausteine') as $meldung)
+                                <li>{{ $meldung }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
 
                 <div class="space-y-3" @focusin="feldMerken($event)">
                     <template x-for="(b, i) in bausteine" :key="b._id">
@@ -695,7 +714,12 @@
 
                 async gruppeLoeschen() {
                     if (! this.modal.id) return;
-                    if (! confirm('Gruppe „' + this.modal.name + '“ löschen? Ausgaben, die sie nutzen, verlieren diese Zielgruppe.')) return;
+                    // Intranet-Dialog des Core statt Browser-confirm.
+                    const ja = await window.bestaetige(
+                        'Gruppe „' + this.modal.name + '“ löschen? Ausgaben, die sie nutzen, verlieren diese Zielgruppe.',
+                        { titel: 'Gruppe löschen', knopf: 'Löschen' },
+                    );
+                    if (! ja) return;
 
                     const antwort = await this.holen(config.urls.gruppen + '/' + this.modal.id, {}, 'DELETE');
                     if (! antwort?.ok) { this.modal.fehler = 'Löschen fehlgeschlagen.'; return; }
