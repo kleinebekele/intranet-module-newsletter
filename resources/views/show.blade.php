@@ -217,6 +217,30 @@
                         </p>
                     @endif
                 </section>
+
+                @darfRoute('module.newsletter.einzelversand')
+                <section class="rounded-xl border border-gray-200 bg-white p-5">
+                    <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Einzeln versenden</h2>
+                    <p class="mt-1 text-sm text-gray-600">
+                        Schickt diese Ausgabe, so wie sie in der Vorschau steht, an eine beliebige Adresse –
+                        ohne [TEST] im Betreff. Zählt nicht zum Versand oben.
+                    </p>
+                    <form method="POST" action="{{ route('module.newsletter.einzelversand', $kampagne) }}" class="mt-3"
+                          data-bestaetigen="Diese Ausgabe an die eingegebene Adresse schicken?"
+                          data-titel="Einzeln versenden" data-knopf="Senden">
+                        @csrf
+                        <input type="email" name="an" required maxlength="191" value="{{ old('an') }}"
+                               placeholder="empfaenger@example.org"
+                               class="w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        @error('an', 'einzelversand') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        <button type="submit"
+                                class="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-indigo-600 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50">
+                            <i class='bx bx-mail-send'></i>
+                            Senden
+                        </button>
+                    </form>
+                </section>
+                @enddarfRoute
             @endif
         </div>
     </div>

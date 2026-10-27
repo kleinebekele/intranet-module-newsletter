@@ -64,4 +64,6 @@ Route::middleware(['web', 'auth'])
         Route::put('/{kampagne}', [NewsletterController::class, 'update'])->name('update');
         Route::delete('/{kampagne}', [NewsletterController::class, 'destroy'])->name('destroy');
         Route::post('/{kampagne}/freigeben', [NewsletterController::class, 'freigeben'])->name('freigeben');
+        // Nachträglich an eine frei gewählte Adresse – gedrosselt wie die Testmail.
+        Route::post('/{kampagne}/einzelversand', [NewsletterController::class, 'einzelversand'])->middleware('throttle:10,1')->name('einzelversand');
     });

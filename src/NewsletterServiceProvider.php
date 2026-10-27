@@ -49,7 +49,7 @@ class NewsletterServiceProvider extends ModuleServiceProvider
             // nach dem Anlegen landet man ohnehin auf deren Detailseite.
             ->gehoertZu('create', 'store')
             ->gehoertZu('index',
-                'show', 'mail-vorschau', 'empfaenger', 'edit', 'update', 'destroy', 'freigeben',
+                'show', 'mail-vorschau', 'empfaenger', 'edit', 'update', 'destroy', 'freigeben', 'einzelversand',
                 'reichweite', 'vorschau', 'testmail', 'bild', 'gruppen',
             )
             ->gehoertZu('vorlagen', 'vorlagen')
@@ -57,6 +57,8 @@ class NewsletterServiceProvider extends ModuleServiceProvider
             ->lesend('reichweite', 'vorschau', 'vorlagen.vorschau')
             // Die Freigabe verschickt und lässt sich nicht zurücknehmen → verwalten.
             ->stufe(Zugriffsstufe::Verwalten, 'freigeben')
+            // Einzelversand geht an beliebige Adressen → ebenfalls verwalten.
+            ->stufe(Zugriffsstufe::Verwalten, 'einzelversand')
             // Persönliche Zielgruppen gehören ihrem Ersteller (Controller prüft
             // das); wer eine Ausgabe bearbeiten darf, darf sich welche anlegen.
             ->stufe(Zugriffsstufe::Bearbeiten, 'gruppen.store', 'gruppen.destroy');

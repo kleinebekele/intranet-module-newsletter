@@ -501,6 +501,60 @@ class NewsletterController extends Controller
         ]);
     }
 
+    /**
+     * Eine freigegebene (auch längst versendete) Ausgabe nachträglich an eine
+     * frei gewählte Adresse schicken – etwa für jemanden, der nicht im
+     * Verteiler ist. Ohne [TEST]: Das ist ein echtes Exemplar, so wie es alle
+     * bekommen haben. Fremde Adressen erlaubt, deshalb nur mit „verwalten"
+     * (Manifest + hier) und gedrosselt.
+     *
+     * Die Referenz `newsletter-manuell:<ausgabe>` fällt bewusst nicht unter
+     * `newsletter:<ausgabe>:%` – die Zustellzahlen der Ausgabe bleiben die des
+     * eigentlichen Versands.
+     */
+    public function einzelversand(Request $request, Kampagne $kampagne): RedirectResponse
+    {
+        abort_unless(self::darfVerwalten($request), 403);
+
+        if ($kampagne->istEntwurf()) {
+            return back()->with('error', 'Ein Entwurf wird über die Testmail im Editor verschickt.');
+        }
+
+        $daten = $request->validateWithBag('einzelversand', [
+            'an' => ['required', 'email', 'max:191'],
+        ]);
+        $an = trim($daten['an']);
+
+        if (! Zustellbarkeit::zustellbar($an)) {
+            return back()->withInput()->with('error', 'An diese Adresse kann nicht zugestellt werden.');
+        }
+
+        // Gehört die Adresse einem Benutzer, bekommt {{name}} seinen Namen –
+        // sonst bleibt der Platzhalter leer wie beim Versand an Unbekannte.
+        $benutzer = User::query()->whereRaw('LOWER(email) = ?', [mb_strtolower($an)])->first();
+
+        Zusteller::zustellen(
+            $this->mailer,
+            $an,
+            $kampagne->mitRahmen(),
+            (string) $kampagne->betreff,
+            $kampagne->alsHtml(),
+            $kampagne->alsText(),
+            [
+                'name' => (string) ($benutzer->name ?? ''),
+                'betreff' => (string) $kampagne->betreff,
+                'ausgabe' => (string) $kampagne->titel,
+            ],
+            'newsletter-manuell:'.$kampagne->id,
+            $kampagne->absender_name,
+            $kampagne->antwort_an,
+            $kampagne->konto(),
+            $kampagne->vorlage(),
+        );
+
+        return back()->with('status', "„{$kampagne->titel}\" an {$an} liegt im Ausgangskorb.");
+    }
+
     /** Eigene Adresse oder die eines vorhandenen Benutzers (Groß/Klein egal)? */
     private function testAdresseErlaubt(Request $request, string $an): bool
     {
